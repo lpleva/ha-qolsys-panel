@@ -945,6 +945,204 @@
       "implemented_in": [],
       "triaged": "2026-10-17",
       "source": "triage"
+    },
+    {
+      "sha": "2000b34aacf6df71771fde4afa0c541ec3e971ef",
+      "date": "2026-10-17",
+      "subject": "ci: auto-close dev -> main pull requests (#150)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI: a workflow that auto-closes dev-to-main pull requests on their GitHub repo. Build/CI settings for their release process, which this fork does not run.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "6116563fa1e09239e163a52da2377a42e936d26e",
+      "date": "2026-10-17",
+      "subject": "ci: add label-driven PR workflows, drop sync-dev back-merge (#151)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI: label-driven auto-close and beta-merge workflows plus removal of their dev back-merge job. Build/CI settings for their release process, which this fork does not run.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "a6afab0c861c5ff4566e233ba57b3250497e1d39",
+      "date": "2026-10-19",
+      "subject": "feat: add force arm switch (#157)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Force Arm: a new one-shot partition switch that makes the next arm bypass open zones even with the panel's Auto Bypass off, and the bypass error now tells you to turn it on; it touches arming and needs library 1.12.3's command_force_arm, which our vendored 1.11.0 lacks. Split: the Z-Wave thermostat set_temperature fix is a real correctness fix but for hardware not on this panel, and the lock.py punctuation, manifest pin 1.12.3b2, version, changelog and CI hunks are declined; note the new error text would also tell people to force-arm past an open smoke/CO/water zone, which our L1 guard raises on.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "0b6f2f4fdfecb6210ad1a432811715161d05cecc",
+      "date": "2026-10-19",
+      "subject": "fix: IQ2+ panel z-wave thermostat service improvement (#158)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Empty commit (no file changes), a squash-merge label for the IQ2+ Z-Wave thermostat work whose code arrived in a6afab0 and earlier commits. Nothing to take; no Z-Wave thermostat on this panel, revisit if you add one.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "69fd0abead311a6b25f823d83166e9c748a723dd",
+      "date": "2026-10-19",
+      "subject": "fix: IQ2+ panel z-wave lock service improvement",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Empty commit (no file changes) naming an IQ2+ Z-Wave lock improvement; nothing to take, and the house's locks are Matter Schlage locks run by HA, not the panel. Revisit if a Z-Wave lock is ever paired to the panel.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "907e24800fbdb13ac7ff15d2be0dd3554ae4627a",
+      "date": "2026-10-19",
+      "subject": "fix: 140 feature request bypass open zones (#161)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Empty commit (no file changes), the merge label for upstream issue #140 'bypass open zones'; the code is the Force Arm switch in a6afab0, which carries the ask row. Nothing to take from this commit itself.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "b94b700f98e49686023e251930e56eead0653928",
+      "date": "2026-10-19",
+      "subject": "ci: reset dev to main after a stable release",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI: re-adds a job that force-resets their dev branch after a stable release. Build/CI settings this fork does not run.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "5a2b8de1ff180dbf7f5aa4762adffbe0c8dfde4a",
+      "date": "2026-10-20",
+      "subject": "1.11.0",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.11.0 semantic-release commit (changelog, version, library pin 1.12.3); this fork versions itself and vendors the library.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "7b6d64aae4eb2f4c124fca91d093fe9ecfed1036",
+      "date": "2026-10-20",
+      "subject": "ci: commit qolsys-controller bump as a fix: to trigger releases",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI: their release workflow now commits a qolsys-controller pin bump as a fix: commit. Build/CI settings this fork does not run; we vendor the library.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "f3031c3bcd6064ec5657f99ff393ed0485226b4d",
+      "date": "2026-10-20",
+      "subject": "ci: surface qolsys-controller bump on the run summary",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI: prints the controller version change on their GitHub Actions run summary. Build/CI settings this fork does not run.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "3804535fd9ce404ca0142a8f99c17f3ae1d4fd1f",
+      "date": "2026-10-21",
+      "subject": "ci: adopt qolsys-controller workflow process",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI overhaul (renamed and new branch/beta/PR-title workflows, publish.yml) plus a README badge edit. Build/CI settings and README for their release process, which this fork does not run.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "b52b464056eda4980617816ad8cb278929d116fd",
+      "date": "2026-10-21",
+      "subject": "ci: inline bundled controller changelog, drop license line from release notes",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's CI: release-notes formatting for the bundled controller changelog and the license line in their notes template. Build/CI settings this fork does not run.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "9a9f9843e94214cb1caa904a014016ca50aadecb",
+      "date": "2026-10-22",
+      "subject": "fix: bump qolsys-controller to 1.12.5",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Manifest pin bump of qolsys-controller 1.12.3 to 1.12.5; this fork vendors the library (at 1.11.0), so the pin does not apply. What 1.11.1 to 1.12.5 changed goes into the separate vendored-library review, which also decides force arm and the IP-camera code.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "13711e906df9c4e3983a09dd74767ad301995a94",
+      "date": "2026-10-22",
+      "subject": "1.11.1",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.11.1 semantic-release commit (changelog and version); this fork versions itself.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "3f8d8da900e0a807b579a01558c1cd254fb60341",
+      "date": "2026-10-23",
+      "subject": "feat: add event entities for IP camera motion and doorbell events (#164)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Motion and doorbell event entities for IP (doorbell) cameras paired to the panel; read-only, but the house has no IP cameras on the panel and our vendored 1.11.0 has no ip_cameras state or QolsysIpCameraEntity (same call as feaba0a). Hardware we don't have: revisit if you add one, together with feaba0a and vendoring the 1.12.x IP-camera library code.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "dace5c036b9693b0be8ef610eb67adb0a04ba2ae",
+      "date": "2026-10-23",
+      "subject": "chore: add Home Assistant categories to manifest",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Adds a 'categories' list to the manifest, which upstream removed again in the next commit (73588b2); net zero change.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "73588b23dc1eaeb64540a819862c7af22ee45d75",
+      "date": "2026-10-23",
+      "subject": "chore: remove manifest.json categories for now",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Removes the manifest 'categories' list dace5c0 added; together the two are a no-op for this fork.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
+    },
+    {
+      "sha": "c8b404ea423ac88f89f13fda21e605da1bb0e457",
+      "date": "2026-10-24",
+      "subject": "1.12.0",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.12.0 semantic-release commit (changelog and version); this fork versions itself.",
+      "implemented_in": [],
+      "triaged": "2026-10-24",
+      "source": "triage"
     }
   ]
 }
