@@ -19,8 +19,9 @@
 - Vendored `qolsys_controller`: upstream 1.11.1 to 1.12.5 reviewed release by
   release from the PyPI sdists (the integration upstream now pins 1.12.5).
   **Taken:** the `garageTilt2` zone sensor group (1.12.5, upstream #102); a
-  zone the panel puts in that group used to log an error with a traceback on
-  every update and read as the raw string. One line, three tests.
+  zone the panel puts in that group used to log an error with a traceback
+  whenever its group was set, a warning on every event, and read as the raw
+  string. One line, three tests.
   **Declined:** Force Arm (1.12.3: arms with open zones the panel refuses
   while Auto Bypass is off; Lukas's call), the IP camera list and camera
   motion/doorbell-press events (1.11.1, 1.12.0, 1.12.1; no IP camera is paired

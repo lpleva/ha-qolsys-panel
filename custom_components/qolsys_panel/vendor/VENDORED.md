@@ -386,8 +386,8 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   sides): every difference is an entry on this page, so the baseline holds.
   **Taken:** `enum_qolsys.py` gains `ZoneSensorGroup.GARAGE_TILT_2 =
   "garageTilt2"` (1.12.5, upstream #102). A zone the panel puts in that group
-  used to log an ERROR with a traceback from the `sensorgroup` setter on every
-  update and an "Unknown ZoneSensorGroup, please report" warning on every event
+  used to log an ERROR with a traceback from the `sensorgroup` setter whenever
+  the group was set (the setter only validates on a change) and an "Unknown ZoneSensorGroup, please report" warning on every event
   dict, and its `group` read as the raw string instead of `garage_tilt_2`. It is
   not in `SafetyZoneSensorGroup`, so the L1 guard decides exactly as before.
   Tests in `test/test_vendor_zone_sensor_groups.py` (the unknown-group path is
