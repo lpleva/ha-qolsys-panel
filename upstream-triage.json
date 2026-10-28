@@ -973,11 +973,15 @@
       "date": "2026-10-19",
       "subject": "feat: add force arm switch (#157)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "rejected",
       "reason": "Force Arm: a new one-shot partition switch that makes the next arm bypass open zones even with the panel's Auto Bypass off, and the bypass error now tells you to turn it on; it touches arming and needs library 1.12.3's command_force_arm, which our vendored 1.11.0 lacks. Split: the Z-Wave thermostat set_temperature fix is a real correctness fix but for hardware not on this panel, and the lock.py punctuation, manifest pin 1.12.3b2, version, changelog and CI hunks are declined; note the new error text would also tell people to force-arm past an open smoke/CO/water zone, which our L1 guard raises on.",
       "implemented_in": [],
       "triaged": "2026-10-24",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-10-27",
+        "note": "Lukas: no to Force Arm (\"aligned\" with Leo's no: Auto Bypass already on; safety zones cannot be forced). The clearer refusal text shipped separately in 1.9.1."
+      }
     },
     {
       "sha": "0b6f2f4fdfecb6210ad1a432811715161d05cecc",
