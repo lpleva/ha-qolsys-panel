@@ -16,6 +16,20 @@
   them. Inspired by upstream a6afab0 (#157), whose Force Arm switch, "turn on
   the Force Arm switch to arm anyway" hint and qolsys-controller 1.12.3 bump
   are not taken. Six tests.
+- Vendored `qolsys_controller`: upstream 1.11.1 to 1.12.5 reviewed release by
+  release from the PyPI sdists (the integration upstream now pins 1.12.5).
+  **Taken:** the `garageTilt2` zone sensor group (1.12.5, upstream #102); a
+  zone the panel puts in that group used to log an error with a traceback on
+  every update and read as the raw string. One line, three tests.
+  **Declined:** Force Arm (1.12.3: arms with open zones the panel refuses
+  while Auto Bypass is off; Lukas's call), the IP camera list and camera
+  motion/doorbell-press events (1.11.1, 1.12.0, 1.12.1; no IP camera is paired
+  to the panel), the Z-Wave thermostat operating state and supported-modes
+  commands (1.11.3, 1.12.2, 1.12.4), the Z-Wave light level fix and the lock
+  changes (1.12.2, 1.12.3; no Z-Wave device is paired to the panel, and the
+  house's locks are Matter devices Home Assistant drives itself), and
+  upstream's debug table dumps and CI/metadata churn. `vendor/VENDORED.md`
+  lists every hunk.
 
 ## 1.9.0
 
