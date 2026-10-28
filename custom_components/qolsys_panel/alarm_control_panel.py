@@ -23,6 +23,7 @@ from .vendor.qolsys_controller.enum_qolsys import (
     PartitionAlarmState,
     PartitionArmingType,
     PartitionSystemStatus,
+    ZoneStatus,
 )
 from .vendor.qolsys_controller.errors import (
     QolsysOperationTimeoutError,
@@ -220,11 +221,55 @@ class PartitionAlarmControlPanel(QolsysPartitionEntity, AlarmControlPanelEntity)
         except QolsysOperationTimeoutError as err:
             raise HomeAssistantError(f"{arm_mode.name}: Operation timed out") from err
         except QolsysZoneBypassError as err:
-            raise HomeAssistantError(
-                f"{arm_mode.name}: Zone bypass required:{err.zones}"
-            ) from err
+            raise self._arm_blocked_error(arm_mode, err.zones) from err
         except Exception as err:
             _LOGGER.error("Failed to arm partition%s: %s", self._partition_id, err)
             raise HomeAssistantError(
                 f"{arm_mode.name}: Failed to arm partition"
             ) from err
+
+    def _arm_blocked_error(
+        self, arm_mode: PartitionArmingType, zone_ids: list[str]
+    ) -> HomeAssistantError:
+        """Describe a refused arm by the zones that blocked it, by name.
+
+        The library raises QolsysZoneBypassError for two refusals and hands
+        over zone ids: a tripped safety zone (smoke, CO, water; audit L1,
+        refused before anything is sent to the panel) and open zones the panel
+        will not bypass because Auto Bypass is off. The dashboard shows zones
+        by name, so the message does too. This only words the refusal: whether
+        the arm is allowed is decided in the library, and nothing here suggests
+        a way around it.
+        """
+        action = ACTION_WORDS[arm_mode.name]
+        safety: list[str] = []
+        other: list[str] = []
+        for zone_id in zone_ids:
+            zone = self.QolsysPanel.state.zone(zone_id)
+            if zone is None:
+                other.append(f"zone {zone_id}")
+                continue
+            name = zone.sensorname
+            label = name if isinstance(name, str) and name else f"zone {zone_id}"
+            status = zone.sensorstatus
+            if isinstance(status, ZoneStatus):
+                label = f"{label} ({status.value.lower()})"
+            (safety if zone.is_safety() else other).append(label)
+
+        # The library refuses on safety zones before it looks at the rest, so
+        # they arrive alone; they are also the ones no setting can bypass, so
+        # they get their own sentence whenever one is present.
+        if safety:
+            return HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="arm_blocked_safety_zones",
+                translation_placeholders={
+                    "action": action,
+                    "zones": ", ".join(safety),
+                },
+            )
+        return HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="arm_blocked_open_zones",
+            translation_placeholders={"action": action, "zones": ", ".join(other)},
+        )

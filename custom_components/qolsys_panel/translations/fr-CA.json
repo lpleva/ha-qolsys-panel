@@ -87,6 +87,12 @@
     "user_code_invalid": {
       "message": "Ce code utilisateur n'est pas valide. Vérifiez-le et réessayez de {action}."
     },
+    "arm_blocked_safety_zones": {
+      "message": "Impossible de {action}, ces zones de sécurité ne sont pas dégagées : {zones}. Les zones de fumée, de CO et d'eau ne peuvent pas être contournées; dégagez-les d'abord, puis réessayez de {action}."
+    },
+    "arm_blocked_open_zones": {
+      "message": "Impossible de {action}, ces zones ne sont pas prêtes : {zones}. Fermez-les ou corrigez-les, puis réessayez de {action}."
+    },
     "integration_not_found": {
       "message": "Intégration « {target} » introuvable dans le registre."
     },

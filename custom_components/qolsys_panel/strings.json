@@ -97,6 +97,12 @@
     "user_code_invalid": {
       "message": "That user code is not valid. Check it and try to {action} again."
     },
+    "arm_blocked_safety_zones": {
+      "message": "Could not {action}, these safety zones are not clear: {zones}. Smoke, CO and water zones cannot be bypassed; clear them first, then try to {action} again."
+    },
+    "arm_blocked_open_zones": {
+      "message": "Could not {action}, these zones are not ready: {zones}. Close or fix them, then try to {action} again."
+    },
     "integration_not_found": {
       "message": "Integration \"{target}\" not found in registry."
     },

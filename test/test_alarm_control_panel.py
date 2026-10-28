@@ -1,5 +1,7 @@
 """Tests for the Qolsys Panel alarm control panel."""
 
+import json
+from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
@@ -15,6 +17,7 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.enum_qolsys import 
     PartitionAlarmState,
     PartitionArmingType,
     PartitionSystemStatus,
+    ZoneStatus,
 )
 from custom_components.qolsys_panel.vendor.qolsys_controller.errors import (
     QolsysOperationTimeoutError,
@@ -250,6 +253,125 @@ async def test_arm_errors(controller: MagicMock, error: Exception) -> None:
     cast(AsyncMock, entity._partition.arm).side_effect = error
     with pytest.raises(HomeAssistantError):
         await entity.async_alarm_arm_away("1234")
+
+
+COMPONENT = Path("custom_components/qolsys_panel")
+ARM_BLOCKED_KEYS = ("arm_blocked_safety_zones", "arm_blocked_open_zones")
+
+
+def _rendered(key: str, placeholders: dict[str, str]) -> list[str]:
+    """The sentence a user sees for a translated error, English then French."""
+    texts = []
+    for name in ("translations/en.json", "translations/fr-CA.json"):
+        data = json.loads((COMPONENT / name).read_text(encoding="utf-8"))
+        texts.append(data["exceptions"][key]["message"].format(**placeholders))
+    return texts
+
+
+def _assert_no_way_around(texts: list[str]) -> None:
+    """A refusal never tells the user how to arm anyway."""
+    for text in texts:
+        lowered = text.lower()
+        assert "force" not in lowered
+        assert "forc" not in lowered  # forcer / forcé
+        assert "anyway" not in lowered
+        assert "quand même" not in lowered
+
+
+def _zone(name: str, *, safety: bool, status: ZoneStatus = ZoneStatus.OPEN) -> MagicMock:
+    """A zone as state.zone() returns it."""
+    zone = MagicMock()
+    zone.sensorname = name
+    zone.sensorstatus = status
+    zone.is_safety.return_value = safety
+    return zone
+
+
+@pytest.mark.parametrize(
+    ("method", "action"),
+    [("async_alarm_arm_away", "arm away"), ("async_alarm_arm_home", "arm home")],
+)
+async def test_arm_refused_by_a_tripped_safety_zone_names_it(
+    controller: MagicMock, method: str, action: str
+) -> None:
+    """The L1 refusal names the tripped safety zone and says to clear it first.
+
+    The library raises QolsysZoneBypassError with zone ids; the user sees the
+    zone's name, that it cannot be bypassed, and no hint to arm anyway.
+    """
+    entity = _panel(controller)
+    controller.state.zone.side_effect = {"4": _zone("Hallway Smoke", safety=True)}.get
+    cast(AsyncMock, entity._partition.arm).side_effect = QolsysZoneBypassError(["4"])
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await getattr(entity, method)("1234")
+
+    assert raised.value.translation_key == "arm_blocked_safety_zones"
+    assert raised.value.translation_placeholders == {
+        "action": action,
+        "zones": "Hallway Smoke (open)",
+    }
+    english, french = _rendered(
+        "arm_blocked_safety_zones", raised.value.translation_placeholders
+    )
+    assert f"Could not {action}" in english
+    assert "Hallway Smoke (open)" in english
+    assert "cannot be bypassed; clear them first" in english
+    assert "Hallway Smoke (open)" in french
+    assert "ne peuvent pas être contournées" in french
+    _assert_no_way_around([english, french])
+
+
+async def test_arm_refused_by_open_zones_names_them(controller: MagicMock) -> None:
+    """The Auto Bypass refusal lists every blocking zone by name and status."""
+    entity = _panel(controller)
+    controller.state.zone.side_effect = {
+        "2": _zone("Front Door", safety=False),
+        "7": _zone("Garage Window", safety=False, status=ZoneStatus.TAMPERED),
+    }.get
+    cast(AsyncMock, entity._partition.arm).side_effect = QolsysZoneBypassError(
+        ["2", "7"]
+    )
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await entity.async_alarm_arm_away("1234")
+
+    assert raised.value.translation_key == "arm_blocked_open_zones"
+    assert raised.value.translation_placeholders == {
+        "action": "arm away",
+        "zones": "Front Door (open), Garage Window (tampered)",
+    }
+    texts = _rendered("arm_blocked_open_zones", raised.value.translation_placeholders)
+    for text in texts:
+        assert "Front Door (open), Garage Window (tampered)" in text
+        # Bypass is a panel setting, not something the message steers towards.
+        assert "bypass" not in text.lower()
+        assert "contourn" not in text.lower()
+    _assert_no_way_around(texts)
+
+
+async def test_arm_refused_by_an_unknown_zone_falls_back_to_its_id(
+    controller: MagicMock,
+) -> None:
+    """A zone id the state no longer holds is still reported, as its id."""
+    entity = _panel(controller)
+    controller.state.zone.return_value = None
+    cast(AsyncMock, entity._partition.arm).side_effect = QolsysZoneBypassError(["9"])
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await entity.async_alarm_arm_night("1234")
+
+    assert raised.value.translation_key == "arm_blocked_open_zones"
+    assert raised.value.translation_placeholders == {
+        "action": "arm night",
+        "zones": "zone 9",
+    }
+
+
+@pytest.mark.parametrize("key", ARM_BLOCKED_KEYS)
+def test_arm_refusal_templates_never_suggest_forcing(key: str) -> None:
+    """The raw templates, in both languages, carry no force-arm wording."""
+    _assert_no_way_around(_rendered(key, {"action": "arm away", "zones": "Zone"}))
 
 
 async def test_setup_without_unique_id_raises_value_error(
