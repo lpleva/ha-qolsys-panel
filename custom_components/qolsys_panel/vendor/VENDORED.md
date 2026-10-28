@@ -1,11 +1,12 @@
 # Vendored `qolsys_controller`
 
 Upstream: [EHylands/QolsysController](https://github.com/EHylands/QolsysController),
-PyPI package `qolsys-controller`, **version 1.8.6 plus three fixes from 1.9.x
-and the camera snapshot feature from 1.11.0**
+PyPI package `qolsys-controller`, **version 1.8.6 plus three fixes from 1.9.x,
+the camera snapshot feature from 1.11.0 and the `garageTilt2` sensor group from
+1.12.5**
 (1.7.1 vendored 2026-09-07; the 1.7.2 and 1.8.0 changes applied 2026-09-12 from
 the PyPI wheels; 1.8.6 on 2026-09-19; three 1.8.7 to 1.9.13 fixes on 2026-10-09;
-the 1.11.0 camera code on 2026-10-10,
+the 1.11.0 camera code on 2026-10-10; the 1.12.5 sensor group on 2026-10-27,
 see "Upstream versions" below), taken from the
 `qolsys_controller-1.7.1-py3-none-any.whl` wheel published on PyPI.
 License: MIT, kept verbatim at `qolsys_controller/LICENSE`.
@@ -376,3 +377,73 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   `camerarequest` table is registered with `_report_new_columns = True`, so a
   column this firmware adds would log a "Please Report" warning once per load,
   the same as every other table.
+- **1.11.1 to 1.12.5 (reviewed 2026-10-27, one fix taken):** the PyPI sdists
+  `qolsys_controller-1.11.0.tar.gz` through `-1.12.5.tar.gz`, all ten
+  downloaded and diffed release by release (the integration upstream pins
+  1.12.5 since its 1.12.0). The library delta is 18 files, 430 lines added and
+  132 removed, plus 13 new Z-Wave service test files. Before diffing, the
+  vendored copy was compared with pristine 1.11.0 (imports normalized on both
+  sides): every difference is an entry on this page, so the baseline holds.
+  **Taken:** `enum_qolsys.py` gains `ZoneSensorGroup.GARAGE_TILT_2 =
+  "garageTilt2"` (1.12.5, upstream #102). A zone the panel puts in that group
+  used to log an ERROR with a traceback from the `sensorgroup` setter on every
+  update and an "Unknown ZoneSensorGroup, please report" warning on every event
+  dict, and its `group` read as the raw string instead of `garage_tilt_2`. It is
+  not in `SafetyZoneSensorGroup`, so the L1 guard decides exactly as before.
+  Tests in `test/test_vendor_zone_sensor_groups.py` (the unknown-group path is
+  pinned too, so a value the library has never seen still gets reported).
+  **Not taken**, by release:
+  - 1.11.1, 1.12.0, 1.12.1, **IP cameras**: new `camera_ip.py`
+    (`QolsysIpCamera`, an observable with press and motion events), `panel.py`
+    reads the `IP_CAMERA_LIST` panel setting into camera objects and hands the
+    doorbell event's `cameraId` to the matching camera, `state.py` keeps the
+    list with add/delete/sync and a debug dump, `enum_qolsys.py` the
+    `CAMERA_ADD`, `CAMERA_DELETE`, `CAMERA_PRESS_EVENT` and
+    `CAMERA_MOTION_EVENT` notifications. No IP camera is paired to this panel
+    (the house's cameras are UniFi Protect, in Home Assistant directly).
+  - 1.11.1, 1.11.3, 1.12.0, `controller.py`: on every connect, a
+    `database_remote_read` dump of the IQ camera table (1.11.1, removed in
+    1.11.2), then of the thermostat, Z-Wave node and automation tables (1.11.3,
+    commented out in 1.12.0). Debug scaffolding that would have logged whole
+    panel tables at DEBUG; the commented block left in 1.12.5 is not carried.
+  - 1.11.2: `"extras"` in the automation device's `to_dict` (no automation
+    device is paired).
+  - 1.11.3, 1.12.2, 1.12.4, **Z-Wave thermostat**: new
+    `thermostat_mode_supported_get`, `thermostat_fan_mode_supported_get` and
+    `thermostat_operating_state_get` commands, the `parse_command_42`
+    operating-state report with nine new `ThermostatOperatingState` values and
+    an `hvac_action` setter, the IQ2+ preemptive setpoint/mode/fan writes
+    commented out, `round()` for the setpoint. Also from 1.12.2: `update_raw`
+    rewritten to call `commands.zwave.*_get` helpers (new `barrier_operator_get`
+    and `doorlock_get`), `switch_binary_get` accepting an outlet, an outlet
+    guard in multi-channel discovery, and the Z-Wave light trusting
+    `extras["LEVEL"]` only while on. No Z-Wave device is paired to this panel;
+    revisit with the Central Scene and ADC thermostat items above if one is.
+  - 1.12.1: `state.py` sorts automation devices by `int(virtual_node_id)`
+    instead of as strings (ordering only; no devices).
+  - 1.12.3, **Force Arm**: `commands/panel.py::arm` gains `force_arm`, which
+    with `AUTO_BYPASS == "false"` bypasses the open zones instead of raising
+    `QolsysZoneBypassError`; `partition.py` gains the one-shot
+    `command_force_arm` flag. Declined by Lukas: the whole point of that
+    refusal is that an open door stops the arm until someone looks. The hunk
+    sits in the AUTO_BYPASS branch directly under the L1 safety-zone guard and
+    leaves it alone, so nothing here would have undone the audit fix either way.
+  - 1.12.3, **locks** (upstream #86): the Z-Wave, PowerG and Zigbee
+    `service_lock.py` no longer return early when the cached state already
+    reads locked/unlocked (IQ Panel 2 dropped commands as "already locked"),
+    PowerG and Zigbee fix a bare `self.automation_device.notify` that never
+    called anything, and the Z-Wave lock reports `supports_jam`, sets
+    `is_jammed` from the status "jammed" and asks for a `doorlock_get` report
+    after each command on an IQ2+. The house's four locks are Matter devices
+    Home Assistant drives over Thread; none is paired to the panel. If one ever
+    is, note that without the early return every lock/unlock call from HA
+    sends a radio command even when the state already matches.
+  - 1.12.3, `automation_zwave/service_outlet.py`: deletion of a commented-out
+    block; `pyproject.toml`, CI workflows, changelog templates: metadata.
+
+  Checklist over the whole delta: no new host, port, package or dependency; no
+  logging of codes, keys or certificates (the camera code logs camera ids and
+  names at DEBUG); no blocking I/O on the loop; one swallowed exception
+  (`get_ip_camera_list_from_settings` turns a bad `IP_CAMERA_LIST` JSON into a
+  warning), in declined code; nothing touches keys, certificates or pairing;
+  nothing undoes an audit fix.
