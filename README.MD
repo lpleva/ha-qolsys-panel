@@ -201,7 +201,7 @@ The integration emulates an IQ Remote and exposes the panel's capabilities to Ho
 
 ### Partitions
 
-- **Alarm Control Panel** (`alarm_control_panel`): one per partition; reports the arming status and alarm state, and supports arming (home, away, night) and disarming. **Arming fails while a safety zone is open** (smoke, CO or water): those zones cannot be bypassed, so the action returns "Zone bypass required" naming the zones, rather than arming a system that cannot protect them. Earlier versions armed silently in that case.
+- **Alarm Control Panel** (`alarm_control_panel`): one per partition; reports the arming status and alarm state, and supports arming (home, away, night) and disarming. **Arming fails while a safety zone is open** (smoke, CO or water): those zones cannot be bypassed, so the action returns an error naming the tripped zones ("Could not arm away, these safety zones are not clear: Hallway Smoke (open). Smoke, CO and water zones cannot be bypassed; clear them first, then try to arm away again."), rather than arming a system that cannot protect them. Earlier versions armed silently in that case. An arm the panel refuses because zones are open and Auto Bypass is off is reported the same way, by zone name ("these zones are not ready: Front Door (open). Close or fix them, then try to arm away again.").
 - **Binary sensors** (`binary_sensor`): Exit Sounds, Entry Delays and Quick Exit status, plus dedicated Fire, Police, CO and Auxiliary alarm-active sensors.
 - **Switches** (`switch`): toggle Exit Sounds and Entry Delay, and set the Arm Stay Instant (Arm Home with no exit delay) and Arm Stay Silent Disarming modifiers for the partition.
 - **Sensor** (`sensor`): the last error reported by the partition.

@@ -1,3 +1,22 @@
+## Unreleased
+
+- A refused arm now says which zones blocked it, by name, instead of
+  `ARM_AWAY: Zone bypass required:['4']`. Two sentences through Home
+  Assistant's translation system (English and French), one per refusal. A
+  tripped safety zone (smoke, CO or water; audit L1) reads "Could not arm away,
+  these safety zones are not clear: Hallway Smoke (open). Smoke, CO and water
+  zones cannot be bypassed; clear them first, then try to arm away again."
+  Open zones the panel will not bypass with Auto Bypass off read "Could not arm
+  away, these zones are not ready: Front Door (open), Garage Window (tampered).
+  Close or fix them, then try to arm away again." The names and the safety
+  classification come from the vendored library's own zone table
+  (`state.zone`, `sensorname`, `is_safety`); the library is unchanged and no
+  request goes to the panel. Wording only: the L1 guard and the Auto Bypass
+  refusal decide exactly as before, and neither message suggests a way around
+  them. Inspired by upstream a6afab0 (#157), whose Force Arm switch, "turn on
+  the Force Arm switch to arm anyway" hint and qolsys-controller 1.12.3 bump
+  are not taken. Six tests.
+
 ## 1.9.0
 
 - Upstream 1.9.0 (8 commits, 2026-10-09 to 10-10) reviewed commit by commit.
