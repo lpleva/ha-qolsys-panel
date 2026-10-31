@@ -1175,11 +1175,15 @@
       "date": "2026-10-28",
       "subject": "fix: add zone is_on and is_trouble properties based on zone status (#170)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "approved",
       "reason": "Changes what the zone sensors report: the main zone sensor turns on for Active and Occupied and off for Disconnected and Inactive, and the zone connectivity sensor goes off for Failure, Not Networked, Trouble, Synchronizing and disconnected as well as Unreachable. Read-only, but a visible change to the door, window and motion sensors and to any automation keyed on them, and it calls zone.is_on()/is_trouble() from library 1.12.6, which our vendored copy lacks (the two methods would be inlined or vendored).",
       "implemented_in": [],
       "triaged": "2026-10-31",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-10-31",
+        "note": "Lukas: yes, with the doors bar turning amber on a trouble flag"
+      }
     },
     {
       "sha": "c32dbe4a399c9920a6b65dce1aff6d320f8bb982",
