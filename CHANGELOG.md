@@ -1,5 +1,19 @@
 ## Unreleased
 
+- The thermostat entity now provides Home Assistant 2026.11's `native_*`
+  temperature properties (`native_current_temperature`,
+  `native_target_temperature`, `native_target_temperature_high`,
+  `native_target_temperature_low`, `native_temperature_unit`) and keeps the
+  five old names as aliases that return the native twin. HA 2026.11 renamed
+  the properties and reads only the native ones (its
+  `climate/entity.py` turns each old name into a `DeprecatedEntityProperty`
+  that stops working in 2027.11); HA 2026.10 has no `native_*` and reads only
+  the old names. With both present, 2026.10 keeps working and 2026.11 logs no
+  deprecation warning. No logic changed: each property body moved to its
+  `native_` name. The aliases can go once the house's HA is on 2026.11 or
+  later. Our own version of upstream c32dbe4 (#173), checked against HA core
+  2026.10.4, 2026.11.0b2 and dev. Six tests, one per native property plus one
+  that each old name equals its twin in every mode and unit.
 - A refused arm now says which zones blocked it, by name, instead of
   `ARM_AWAY: Zone bypass required:['4']`. Two sentences through Home
   Assistant's translation system (English and French), one per refusal. A
