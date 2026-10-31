@@ -124,6 +124,121 @@ def test_target_temperature_range(controller: MagicMock, hvac_mode, high, low) -
     assert climate.target_temperature_low == low
 
 
+def test_native_current_temperature(controller: MagicMock) -> None:
+    """The native current temperature passes through to the service."""
+    climate = _climate(controller)
+    climate._service.current_temperature = 70
+    assert climate.native_current_temperature == 70
+
+
+@pytest.mark.parametrize(
+    ("hvac_mode", "expected"),
+    [
+        (QolsysHvacMode.AUTO, None),
+        (QolsysHvacMode.HEAT_COOL, None),
+        (QolsysHvacMode.OFF, None),
+        (QolsysHvacMode.HEAT, 68),
+        (QolsysHvacMode.COOL, 74),
+        (QolsysHvacMode.FAN_ONLY, None),
+    ],
+)
+def test_native_target_temperature(
+    controller: MagicMock, hvac_mode, expected
+) -> None:
+    """The native target temperature depends on the HVAC mode."""
+    climate = _climate(controller)
+    climate._service.hvac_mode = hvac_mode
+    climate._service.target_heat_temp = 68
+    climate._service.target_cool_temp = 74
+    assert climate.native_target_temperature == expected
+
+
+@pytest.mark.parametrize(
+    ("unit", "expected"),
+    [
+        (QolsysTemperatureUnit.CELSIUS, UnitOfTemperature.CELSIUS),
+        (QolsysTemperatureUnit.FAHRENHEIT, UnitOfTemperature.FAHRENHEIT),
+    ],
+)
+def test_native_temperature_unit(controller: MagicMock, unit, expected) -> None:
+    """The native temperature unit maps the device unit."""
+    climate = _climate(controller)
+    climate._service.device_temperature_unit = unit
+    assert climate.native_temperature_unit == expected
+
+
+@pytest.mark.parametrize(
+    ("hvac_mode", "expected"),
+    [
+        (QolsysHvacMode.AUTO, 74),
+        (QolsysHvacMode.HEAT_COOL, 74),
+        (QolsysHvacMode.HEAT, None),
+        (QolsysHvacMode.COOL, None),
+    ],
+)
+def test_native_target_temperature_high(
+    controller: MagicMock, hvac_mode, expected
+) -> None:
+    """The native high target is the cool set point in auto/heat-cool modes."""
+    climate = _climate(controller)
+    climate._service.hvac_mode = hvac_mode
+    climate._service.target_cool_temp = 74
+    climate._service.target_heat_temp = 68
+    assert climate.native_target_temperature_high == expected
+
+
+@pytest.mark.parametrize(
+    ("hvac_mode", "expected"),
+    [
+        (QolsysHvacMode.AUTO, 68),
+        (QolsysHvacMode.HEAT_COOL, 68),
+        (QolsysHvacMode.HEAT, None),
+        (QolsysHvacMode.COOL, None),
+    ],
+)
+def test_native_target_temperature_low(
+    controller: MagicMock, hvac_mode, expected
+) -> None:
+    """The native low target is the heat set point in auto/heat-cool modes."""
+    climate = _climate(controller)
+    climate._service.hvac_mode = hvac_mode
+    climate._service.target_cool_temp = 74
+    climate._service.target_heat_temp = 68
+    assert climate.native_target_temperature_low == expected
+
+
+@pytest.mark.parametrize(
+    "hvac_mode",
+    [QolsysHvacMode.AUTO, QolsysHvacMode.HEAT, QolsysHvacMode.COOL, QolsysHvacMode.OFF],
+)
+@pytest.mark.parametrize(
+    "unit", [QolsysTemperatureUnit.CELSIUS, QolsysTemperatureUnit.FAHRENHEIT]
+)
+def test_deprecated_names_equal_native_twins(
+    controller: MagicMock, hvac_mode, unit
+) -> None:
+    """Each pre-2026.11 property name returns what its native_* twin returns.
+
+    HA 2026.10 reads the old names and 2026.11 reads the native ones, so both
+    must agree in every mode, including the modes where a value is None.
+    """
+    climate = _climate(controller)
+    climate._service.hvac_mode = hvac_mode
+    climate._service.device_temperature_unit = unit
+    climate._service.current_temperature = 70
+    climate._service.target_cool_temp = 74
+    climate._service.target_heat_temp = 68
+
+    for name in (
+        "current_temperature",
+        "target_temperature",
+        "temperature_unit",
+        "target_temperature_high",
+        "target_temperature_low",
+    ):
+        assert getattr(climate, name) == getattr(climate, f"native_{name}"), name
+
+
 def test_passthrough_properties(controller: MagicMock) -> None:
     """Numeric properties pass through to the backing service."""
     climate = _climate(controller)
