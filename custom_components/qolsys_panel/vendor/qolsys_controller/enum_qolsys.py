@@ -327,6 +327,20 @@ class ZoneSensorGroup(StrEnum):
     WATER_NON_REPORTING = "Water_Non_Reporting"
 
 
+# The groups QolsysZone.is_safety() counts: never bypassable, and a tripped one
+# refuses to arm (commands/panel.py::arm, audit L1). The first six are upstream's
+# list. The last three are a fork addition (2026-10-31): the audit and the
+# README both say the guard covers "smoke, CO and water", but the groups the
+# panel actually puts smoke/heat detectors (smoke_heat), CO detectors (co) and
+# reporting water sensors (WaterSensor) in were missing, so a tripped one of
+# those landed in arm()'s unread open_zone_list and the arm command went out.
+# Left out on purpose: freeze and Freeze_Non_Reporting, Temperature and
+# Temperature CMS (property and comfort monitoring, not life safety; the house's
+# freeze sensors are meant to trip in a cold snap, which is no reason to refuse
+# arming), the key fob / keypad / pendant panic groups (buttons that raise an
+# alarm, not detectors that can be "open"), Siren, takeovermodule, translator
+# (devices, not sensors), and every intrusion group (doors, motion, glass, shock,
+# tilt, tamperzone), which the panel bypasses or arms over as it always has.
 SafetyZoneSensorGroup: list[ZoneSensorGroup] = [
     ZoneSensorGroup.DELAYER_REPORTING_SAFETY,
     ZoneSensorGroup.SAFETY_MOTION,
@@ -334,6 +348,9 @@ SafetyZoneSensorGroup: list[ZoneSensorGroup] = [
     ZoneSensorGroup.REPORTING_SAFETY_SENSOR,
     ZoneSensorGroup.WATER_NON_REPORTING,
     ZoneSensorGroup.HIGH_TEMPERATURE_NON_REPORTING,
+    ZoneSensorGroup.SMOKE_HEAT,
+    ZoneSensorGroup.CO,
+    ZoneSensorGroup.WATER,
 ]
 
 

@@ -24,6 +24,7 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.errors import (
     QolsysUserCodeError,
     QolsysZoneBypassError,
 )
+from custom_components.qolsys_panel.vendor.qolsys_controller.zone import QolsysZone
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelState,
     CodeFormat,
@@ -388,3 +389,41 @@ async def test_setup_without_unique_id_raises_value_error(
 
     with pytest.raises(ValueError):
         await async_setup_entry(hass, config_entry, MagicMock())
+
+
+async def test_arm_refused_by_a_real_smoke_heat_zone_reads_as_a_safety_zone(
+    controller: MagicMock,
+) -> None:
+    """A real zone in the smoke_heat group (fork, 2026-10-31) gets the safety sentence, by name.
+
+    The wording path sorts zones with the real is_safety(), so the test uses a
+    real QolsysZone rather than a mock answering True: the point is that the
+    group the panel files smoke detectors under now counts.
+    """
+    smoke = QolsysZone(
+        {
+            "zoneid": "11",
+            "sensorname": "Upstairs Smoke",
+            "sensorstatus": "Open",
+            "sensorgroup": "smoke_heat",
+            "sensortype": "SmokeDetector",
+            "partition_id": "1",
+        },
+        MagicMock(),
+    )
+    entity = _panel(controller)
+    controller.state.zone.side_effect = {"11": smoke}.get
+    cast(AsyncMock, entity._partition.arm).side_effect = QolsysZoneBypassError(["11"])
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await entity.async_alarm_arm_away("1234")
+
+    assert raised.value.translation_key == "arm_blocked_safety_zones"
+    assert raised.value.translation_placeholders == {
+        "action": "arm away",
+        "zones": "Upstairs Smoke (open)",
+    }
+    english, french = _rendered("arm_blocked_safety_zones", raised.value.translation_placeholders)
+    assert "Upstairs Smoke (open)" in english
+    assert "Upstairs Smoke (open)" in french
+    _assert_no_way_around([english, french])

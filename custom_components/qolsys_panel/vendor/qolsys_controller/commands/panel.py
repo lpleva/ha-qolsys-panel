@@ -129,10 +129,26 @@ class PanelCommands:
 
         # Audit L1: a safety zone (smoke, CO, water) cannot be bypassed, so arming
         # with one open used to go ahead silently. Restored as a hard error; the
-        # integration surfaces it as "Zone bypass required".
+        # integration surfaces it as "Zone bypass required". Which groups count
+        # is SafetyZoneSensorGroup in enum_qolsys.py (smoke_heat, co and
+        # WaterSensor were added to it 2026-10-31).
         if open_safety_zones:
             LOGGER.warning("MQTT Panel Client - Cannot arm: open safety zones: %s", open_safety_zones)
             raise QolsysZoneBypassError(open_safety_zones)
+
+        # Zones that are not ready, cannot be bypassed and are not safety zones
+        # (a motion sensor or keypad reporting Tampered or Failure, a freeze
+        # sensor that is cold). Upstream builds this list and never reads it, so
+        # the arm command goes out and the panel decides, as it does from its own
+        # screen. Unchanged here (fork, 2026-10-31): only logged, so an arm that
+        # went ahead over a troubled zone leaves a trace. Nothing is sent to the
+        # panel for these zones; bypass_zoneid_set below carries the bypassable
+        # ones only, exactly as before.
+        if open_zone_list:
+            LOGGER.warning(
+                "MQTT Panel Client - Arming with zones not ready that cannot be bypassed: %s",
+                open_zone_list,
+            )
 
         # Cannot bypass open zones if auto_bypass is disabled - return error
         if bypass_open_zone_list and self._controller.panel.AUTO_BYPASS == "false":

@@ -462,3 +462,19 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   untouched and nothing new reads it. Tests in
   `test/test_vendor_zone_status.py`; `test/test_vendor_arm_guard.py` gains
   real-zone cases so the guard is re-proven on this exact tree.
+- **Fork fix, 2026-10-31 (no upstream counterpart): `SafetyZoneSensorGroup`
+  gains `smoke_heat`, `co` and `WaterSensor`.** The L1 guard decides by that
+  list, and upstream's six names did not include the groups the panel files
+  smoke/heat detectors, CO detectors and reporting water sensors under, so a
+  tripped zone in one of them was neither bypassable nor safety, landed in
+  `arm()`'s never-read `open_zone_list`, and the arm command went out.
+  Upstream has the same gap. Left out on purpose (the reasons are in the
+  comment above the list): `freeze`, `Freeze_Non_Reporting`, `Temperature`,
+  `Temperature CMS`, the panic-button groups, `Siren`, `takeovermodule`,
+  `translator`, every intrusion group. Same file, `commands/panel.py::arm`
+  now logs `open_zone_list` at WARNING ("Arming with zones not ready that
+  cannot be bypassed") instead of dropping it; the decision for those zones is
+  unchanged (the arm goes out, the panel rules) and `bypass_zoneid_set` is
+  built exactly as before. Tests: `test/test_vendor_zone_sensor_groups.py`
+  classifies every `ZoneSensorGroup`; `test/test_vendor_arm_guard.py` runs the
+  three groups through the real `arm()` with the command class patched.
