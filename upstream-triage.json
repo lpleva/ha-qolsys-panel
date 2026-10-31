@@ -1186,9 +1186,13 @@
       "date": "2026-10-28",
       "subject": "fix: attributes depreciation warining for climate entity (#173)",
       "bucket": "implement",
-      "status": "pending",
+      "status": "implemented",
       "reason": "HA compatibility: HA 2026.11 deprecates the climate entity's current_temperature, target_temperature, temperature_unit and target_temperature_high/low in favor of native_* properties (removal in 2027.11). Moves the logic to native_* and keeps the old names as aliases so both HA versions work, with no behavior change; our climate.py still has the old properties.",
-      "implemented_in": [],
+      "implemented_in": [
+        "052d0fa393201ba7ccbf6e19fcc48f96097fe02f",
+        "d78986530715cdfddba283d188ef568bfd481fda",
+        "e820fa73a624ed37ebda421a38b634845785de0a"
+      ],
       "triaged": "2026-10-31",
       "source": "triage"
     },
