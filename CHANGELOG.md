@@ -1,5 +1,51 @@
 ## Unreleased
 
+- **Arming now refuses a tripped smoke/heat, CO or reporting water zone.** The
+  audit L1 guard (`commands/panel.py::arm`) decides by
+  `SafetyZoneSensorGroup`, and that list had upstream's six names
+  (`reportingsafety`, `delayedreportingsafety`, `localsafety`, `safetymotion`,
+  `Water_Non_Reporting`, `High_Temp_Non_Reporting`) but not the groups the
+  panel files smoke/heat detectors (`smoke_heat`), CO detectors (`co`) and
+  reporting water sensors (`WaterSensor`) under. A tripped zone in one of
+  those was neither bypassable nor safety, so it fell into a list `arm()`
+  builds and never reads, and the arm command went to the panel while the
+  README said it would not. Pre-existing, also in upstream, found 2026-10-31
+  while re-proving the guard. Those three groups are in the list now, so a
+  zone in them at Open, Tampered, Failure, Synchronizing or Not Networked
+  refuses to arm with the same error and the same "these safety zones are not
+  clear: Upstairs Smoke (open)" sentence as the older groups, nothing sent to
+  the panel. **What this changes in the house:** the 3 smokes and 2 floods are
+  in these groups, so a smoke detector with its cover off or its supervision
+  lost (Tampered, Failure) blocks arming from Home Assistant, the 10 PM
+  automation included, until it is fixed; the panel's own screen still arms.
+  Not added, on purpose: `freeze` and `Freeze_Non_Reporting`, `Temperature`
+  and `Temperature CMS` (environmental monitoring; the 2 freeze sensors are
+  meant to trip in a cold snap, which is no reason to refuse arming), the key
+  fob / keypad / pendant panic groups, `Siren`, `takeovermodule`,
+  `translator`, and every intrusion group. `test_vendor_zone_sensor_groups.py`
+  now classifies all 41 groups by hand, so a new group fails a test until
+  someone decides. The never-read list is still never acted on (a tampered
+  motion sensor or keypad still arms, as the panel allows from its own
+  screen), but `arm()` now logs it at WARNING so an arm that went ahead over a
+  troubled zone leaves a trace; ordinary door, window, motion and glass zones
+  arm and bypass exactly as before. 59 new test cases: each new group at
+  Open, Tampered and Failure through the real `arm()` with the MQTT command
+  class patched (nothing sent), the same with Auto Bypass on, a control that
+  still arms and bypasses the open door only, the unchanged motion case with
+  its log line, a clean arm with no warning, every group's safety answer, and
+  the refusal sentence on a real `smoke_heat` zone.
+- The IQ Remote's zone sensor (`binary_sensor.zone20_iq_remote_1`, device
+  class Problem) reads off again in normal service. Its resting status is
+  `Active`, which 1.10.0 started counting as on for every zone (right for a
+  motion sensor, where Active means motion), so the keypad showed "Problem"
+  all day. A zone of type `Keypad` is now on for Open, Alarmed or Activated
+  only (what 1.9.x read as on, minus the link words the Status sensor carries
+  since 1.10.0) and off for Active, Idle, Closed, Occupied and the rest.
+  Motion, occupancy and every other type keep Active = on; the vendored
+  `is_on()` is unchanged, the exception lives in `binary_sensor.py`. Cosmetic
+  regression from 1.10.0, 2026-10-31. 33 new test cases: the status table
+  reads every status as a door and as a keypad, every `ZoneStatus` on a
+  keypad, and Active = on for four other types.
 - A zone sensor the panel has lost now reads closed, and the zone's Status
   sensor reports every kind of link trouble. Before: a door or window sensor
   that dropped off the panel (status `disconnected`) showed open, and the
