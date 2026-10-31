@@ -447,3 +447,18 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   (`get_ip_camera_list_from_settings` turns a bad `IP_CAMERA_LIST` JSON into a
   warning), in declined code; nothing touches keys, certificates or pairing;
   nothing undoes an audit fix.
+- **1.12.6 (reviewed 2026-10-31, written our own way, not taken):** one
+  commit (upstream library #104, `834e50d`), which adds `QolsysZone.is_on()`
+  and `is_trouble()` for the integration's 687ab08 (#170). The 1.12.6 sdist as
+  a whole still ships `commands/panel.py::arm` with the L1 safety-zone guard
+  commented out (plus the 1.12.3 Force Arm bypass), so the library copy is not
+  replaced. Instead `enum_qolsys.py` gains two frozensets next to
+  `TroubleZoneStatus`, `OnZoneStatus` {Open, Alarmed, Activated, Active,
+  Occupied} and `ConnectionTroubleZoneStatus` {Unreachable, Failure, Not
+  Networked, Trouble, Synchronizing, disconnected}, and `zone.py` gains the two
+  one-line methods that read them. Same membership as upstream's; the sets are
+  named and exported so a test can check every `ZoneStatus` is classified on
+  purpose. `TroubleZoneStatus` (the arm-readiness list the L1 guard walks) is
+  untouched and nothing new reads it. Tests in
+  `test/test_vendor_zone_status.py`; `test/test_vendor_arm_guard.py` gains
+  real-zone cases so the guard is re-proven on this exact tree.

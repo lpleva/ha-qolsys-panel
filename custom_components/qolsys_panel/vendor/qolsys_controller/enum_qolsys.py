@@ -185,6 +185,38 @@ TroubleZoneStatus: list[ZoneStatus] = [
     ZoneStatus.NOT_NETWORKED,
 ]
 
+# Fork addition (our own version of upstream library 1.12.6 / integration
+# 687ab08): the two status sets behind QolsysZone.is_on() and is_trouble().
+# They are NOT TroubleZoneStatus above: that list is "not ready to arm" and is
+# what commands/panel.py::arm walks before the audit L1 safety-zone guard. It is
+# unchanged, and nothing here reads it.
+#
+# OnZoneStatus: the zone's contact or detector is tripped. A sensor the panel has
+# lost (disconnected, Unreachable) is NOT on; its radio is gone, not its door open.
+OnZoneStatus: frozenset[ZoneStatus] = frozenset(
+    {
+        ZoneStatus.OPEN,
+        ZoneStatus.ALARMED,
+        ZoneStatus.ACTIVATED,
+        ZoneStatus.ACTIVE,
+        ZoneStatus.OCCUPIED,
+    }
+)
+
+# ConnectionTroubleZoneStatus: the panel no longer has a working link to the
+# sensor (supervision lost, radio failure, never joined, mid re-sync). Tampered
+# is deliberately absent: it has its own sensor and the link is fine.
+ConnectionTroubleZoneStatus: frozenset[ZoneStatus] = frozenset(
+    {
+        ZoneStatus.UNREACHABLE,
+        ZoneStatus.FAILURE,
+        ZoneStatus.NOT_NETWORKED,
+        ZoneStatus.TROUBLE,
+        ZoneStatus.SYNCHRONIZING,
+        ZoneStatus.DISCONNECTED,
+    }
+)
+
 
 class DeviceCapability(StrEnum):
     SRF = "SRF"

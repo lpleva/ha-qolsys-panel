@@ -6,7 +6,9 @@ from typing import Any
 
 from .enum_qolsys import (
     BypassCapableZoneSensorType,
+    ConnectionTroubleZoneStatus,
     DeviceCapability,
+    OnZoneStatus,
     QolsysNotification,
     SafetyZoneSensorGroup,
     ZoneSensorGroup,
@@ -131,6 +133,27 @@ class QolsysZone(QolsysObservable):
 
     def is_safety(self) -> bool:
         return self.sensorgroup in SafetyZoneSensorGroup
+
+    # Fork addition, our own version of upstream library 1.12.6 (integration
+    # 687ab08). Both read the status sets in enum_qolsys.py; neither touches
+    # TroubleZoneStatus or the arm() guard that walks it.
+
+    def is_on(self) -> bool:
+        """True while the zone's contact or detector is tripped (door open, motion seen, alarm).
+
+        A sensor the panel has lost is not "on": it reads closed/clear, and
+        is_trouble() carries the lost link instead.
+        """
+        return self.sensorstatus in OnZoneStatus
+
+    def is_trouble(self) -> bool:
+        """True while the panel has no working link to the sensor.
+
+        Unreachable, Failure (supervision lost), Not Networked, Trouble,
+        Synchronizing and disconnected. Tampered is not trouble here; it has its
+        own sensor.
+        """
+        return self.sensorstatus in ConnectionTroubleZoneStatus
 
     def supports_averagedbm(self) -> bool:
         return self.averagedBm is not None
