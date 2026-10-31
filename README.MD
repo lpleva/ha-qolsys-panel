@@ -217,7 +217,7 @@ The integration emulates an IQ Remote and exposes the panel's capabilities to Ho
 
 ### Zones (security sensors)
 
-- **Binary sensor** (`binary_sensor`): open/closed (or motion, etc.) status for each zone, plus per-zone Unreachable, Tamper, Battery and AC-status sensors.
+- **Binary sensor** (`binary_sensor`): open/closed (or motion, etc.) status for each zone, plus per-zone Status, Tamper, Battery and AC-status sensors. The zone sensor is on for Open, Alarmed, Activated, Active and Occupied; a sensor the panel has lost reads closed, not open. **Status** (device class connectivity) reads Connected until the panel reports link trouble (Unreachable, Failure, Not Networked, Trouble, Synchronizing, disconnected), then Disconnected, with the panel's own word in its `zone_status` attribute. Tampered has its own sensor and does not count as link trouble.
 - **Sensors** (`sensor`): Latest and Average signal strength (dBm) and Battery Level/Voltage, plus Temperature and Light on supported PowerG devices.
 
 ### Automation devices (Z-Wave, PowerG, Zigbee)

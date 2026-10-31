@@ -1,5 +1,28 @@
 ## Unreleased
 
+- A zone sensor the panel has lost now reads closed, and the zone's Status
+  sensor reports every kind of link trouble. Before: a door or window sensor
+  that dropped off the panel (status `disconnected`) showed open, and the
+  per-zone **Status** sensor (device class connectivity) went to Disconnected
+  for `Unreachable` only, so a smoke listener whose supervision timed out sat
+  at `Failure` while Home Assistant said Connected throughout (upstream #169).
+  Now the zone sensor is on for Open, Alarmed, Activated, Active and Occupied,
+  nothing else; Status is off (Disconnected) for Unreachable, Failure, Not
+  Networked, Trouble, Synchronizing and disconnected, and carries the panel's
+  own word in a new `zone_status` attribute (`Failure`, `Closed`). Tampered
+  stays with the Tamper sensor. Our own version of upstream 687ab08 (#170):
+  upstream's change calls two methods from library 1.12.6, and that library
+  copy still ships `arm()` with the audit L1 safety-zone guard commented out,
+  so the library is not taken; the two one-line helpers and the status sets
+  behind them live in our vendored copy instead (`vendor/VENDORED.md`,
+  1.12.6 entry). Automations keyed on a lost zone reading open will see
+  closed from here on; key them on the Status sensor instead. 56 test cases:
+  every `ZoneStatus` the library knows is classified on purpose (34), one
+  status table drives all three zone sensors (19), and the L1 guard is
+  re-proven on real zones, including a smoke zone at Failure (3). No timing added on reconnect: the
+  controller re-reads every zone from the panel's table before it reports
+  connected, while the entities are unavailable, so a brief Disconnected after
+  a reconnect is the panel's own report and is shown as such.
 - The thermostat entity now provides Home Assistant 2026.11's `native_*`
   temperature properties (`native_current_temperature`,
   `native_target_temperature`, `native_target_temperature_high`,
