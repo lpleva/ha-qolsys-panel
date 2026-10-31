@@ -1147,6 +1147,72 @@
       "implemented_in": [],
       "triaged": "2026-10-24",
       "source": "triage"
+    },
+    {
+      "sha": "ab933de13a00d19ee268e1ecb8384dce0c731295",
+      "date": "2026-10-24",
+      "subject": "fix: report RING event type for IP camera doorbell (#166)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Changes the IP-camera doorbell event entity to fire HA's standard RING event type instead of 'pressed', plus a README badge. That entity (event.py, QolsysIpCameraDoorbellEvent) was declined in 3f8d8da because no IP camera doorbell is paired to the panel, so there is nothing here to change. Revisit if you add one, and take the RING event type with it.",
+      "implemented_in": [],
+      "triaged": "2026-10-31",
+      "source": "triage"
+    },
+    {
+      "sha": "78d0e9650051f531ae1556cdcfc15909f2444371",
+      "date": "2026-10-24",
+      "subject": "1.12.1",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.12.1 semantic-release commit (changelog, manifest version, pyproject version, no code); this fork versions itself.",
+      "implemented_in": [],
+      "triaged": "2026-10-31",
+      "source": "triage"
+    },
+    {
+      "sha": "687ab0843e81b0da45febb57977ea14ee15b9838",
+      "date": "2026-10-28",
+      "subject": "fix: add zone is_on and is_trouble properties based on zone status (#170)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Changes what the zone sensors report: the main zone sensor turns on for Active and Occupied and off for Disconnected and Inactive, and the zone connectivity sensor goes off for Failure, Not Networked, Trouble, Synchronizing and disconnected as well as Unreachable. Read-only, but a visible change to the door, window and motion sensors and to any automation keyed on them, and it calls zone.is_on()/is_trouble() from library 1.12.6, which our vendored copy lacks (the two methods would be inlined or vendored).",
+      "implemented_in": [],
+      "triaged": "2026-10-31",
+      "source": "triage"
+    },
+    {
+      "sha": "c32dbe4a399c9920a6b65dce1aff6d320f8bb982",
+      "date": "2026-10-28",
+      "subject": "fix: attributes depreciation warining for climate entity (#173)",
+      "bucket": "implement",
+      "status": "pending",
+      "reason": "HA compatibility: HA 2026.11 deprecates the climate entity's current_temperature, target_temperature, temperature_unit and target_temperature_high/low in favor of native_* properties (removal in 2027.11). Moves the logic to native_* and keeps the old names as aliases so both HA versions work, with no behavior change; our climate.py still has the old properties.",
+      "implemented_in": [],
+      "triaged": "2026-10-31",
+      "source": "triage"
+    },
+    {
+      "sha": "75bc14b6122a8689949bed80d59c496a36f7d8a3",
+      "date": "2026-10-29",
+      "subject": "fix: bump qolsys-controller to 1.12.6",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Manifest pin bump of the PyPI qolsys-controller 1.12.5 to 1.12.6; this fork vendors the library, so the pin does not apply. 1.12.6 is separately reviewable: it adds zone is_on()/is_trouble() (the library half of 687ab08) and deletes the commented-out safety-zone guard in commands/panel.py, which our audit L1 re-enabled, so that deletion must not be taken.",
+      "implemented_in": [],
+      "triaged": "2026-10-31",
+      "source": "triage"
+    },
+    {
+      "sha": "4c04cc619f61c2d65d53a1042883f64001b764ed",
+      "date": "2026-10-29",
+      "subject": "1.12.2",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.12.2 semantic-release commit (changelog, manifest version, pyproject version, no code); this fork versions itself.",
+      "implemented_in": [],
+      "triaged": "2026-10-31",
+      "source": "triage"
     }
   ]
 }
