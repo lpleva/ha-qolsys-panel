@@ -355,8 +355,22 @@ class ZoneSensor_Unreachable(QolsysZoneEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return if this zone is unreachable."""
-        return self._zone.sensorstatus != "Unreachable"
+        """Return True while the panel has a working link to this sensor.
+
+        Device class CONNECTIVITY, so on reads "Connected" and off reads
+        "Disconnected". Off for every link-trouble status the panel reports
+        (Unreachable, Failure, Not Networked, Trouble, Synchronizing,
+        disconnected), not only Unreachable: a smoke listener whose supervision
+        timed out sat at "Failure" and this sensor said Connected the whole
+        time (upstream #169, fixed by 687ab08). Our own is_trouble(), see
+        vendor/VENDORED.md.
+        """
+        return not self._zone.is_trouble()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Expose the panel's own status word, so a dashboard can say why a zone is off."""
+        return {"zone_status": str(self._zone.sensorstatus.value)}
 
 
 class ZoneSensor_Tamper(QolsysZoneEntity, BinarySensorEntity):
@@ -437,17 +451,14 @@ class ZonesSensor(QolsysZoneEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return if this zone is on."""
-        if self._zone.sensorstatus in {
-            ZoneStatus.OPEN,
-            ZoneStatus.ALARMED,
-            ZoneStatus.ACTIVATED,
-            ZoneStatus.DISCONNECTED,
-            ZoneStatus.INACTIVE,
-        }:
-            return True
+        """Return True while the zone's contact or detector is tripped.
 
-        return False
+        Open, Alarmed, Activated, Active and Occupied. A sensor the panel has
+        lost (disconnected, Unreachable) now reads off, where it used to read
+        open: the Status sensor next to it carries the lost link (upstream
+        687ab08, #170). Our own is_on(), see vendor/VENDORED.md.
+        """
+        return self._zone.is_on()
 
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:

@@ -30,6 +30,7 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.enum_qolsys import 
     ZoneSensorType,
     ZoneStatus,
 )
+from custom_components.qolsys_panel.vendor.qolsys_controller.zone import QolsysZone
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntityDescription,
@@ -47,10 +48,19 @@ def controller() -> MagicMock:
 
     zone = MagicMock()
     zone.zone_id = "1"
+    zone.sensorstatus = ZoneStatus.CLOSED
+    # The two classification helpers run for real against whatever
+    # sensorstatus a test sets, so these tests exercise the vendored
+    # is_on()/is_trouble() and not a MagicMock's always-truthy return.
+    zone.is_on.side_effect = lambda: QolsysZone.is_on(zone)
+    zone.is_trouble.side_effect = lambda: QolsysZone.is_trouble(zone)
     zone.is_battery_enabled.return_value = True
     zone.is_powerg_battery_level_enabled.return_value = False
     zone.is_ac_enabled.return_value = True
     c.state.zones = [zone]
+    # QolsysZoneEntity looks its zone up with state.zone(id); hand back this
+    # same mock, or each entity gets a fresh one without the wiring above.
+    c.state.zone.return_value = zone
 
     partition = MagicMock()
     partition.id = "1"
@@ -179,13 +189,76 @@ def test_panel_sensor_unknown_key(controller: MagicMock) -> None:
     assert sensor.is_on is False
 
 
-def test_zone_unreachable(controller: MagicMock) -> None:
-    """Connectivity sensor is on unless the zone is unreachable."""
+@pytest.mark.parametrize(
+    ("status", "zone_on", "connected", "tampered"),
+    [
+        # A door at rest.
+        (ZoneStatus.CLOSED, False, True, False),
+        (ZoneStatus.IDLE, False, True, False),
+        (ZoneStatus.NORMAL, False, True, False),
+        (ZoneStatus.INACTIVE, False, True, False),
+        # Tripped: the main sensor is on, the link is fine.
+        (ZoneStatus.OPEN, True, True, False),
+        (ZoneStatus.ALARMED, True, True, False),
+        (ZoneStatus.ACTIVATED, True, True, False),
+        (ZoneStatus.ACTIVE, True, True, False),
+        (ZoneStatus.OCCUPIED, True, True, False),
+        # Link trouble: the main sensor reads closed, Status reads Disconnected.
+        # disconnected used to read as open (the pre-687ab08 behaviour).
+        (ZoneStatus.DISCONNECTED, False, False, False),
+        (ZoneStatus.UNREACHABLE, False, False, False),
+        (ZoneStatus.FAILURE, False, False, False),
+        (ZoneStatus.NOT_NETWORKED, False, False, False),
+        (ZoneStatus.TROUBLE, False, False, False),
+        (ZoneStatus.SYNCHRONIZING, False, False, False),
+        # Tamper has its own sensor; the link is fine and the door is not open.
+        (ZoneStatus.TAMPERED, False, True, True),
+        # A word the library has never seen raises no flag anywhere.
+        (ZoneStatus.UNKNOWN, False, True, False),
+    ],
+)
+def test_zone_sensors_by_status(
+    controller: MagicMock,
+    status: ZoneStatus,
+    zone_on: bool,
+    connected: bool,
+    tampered: bool,
+) -> None:
+    """One panel status, three sensors: the zone itself, Status (connectivity), Tamper."""
+    zone_sensor = ZonesSensor(controller, "1", UID)
+    status_sensor = ZoneSensor_Unreachable(controller, "1", UID)
+    tamper_sensor = ZoneSensor_Tamper(controller, "1", UID)
+    for sensor in (zone_sensor, status_sensor, tamper_sensor):
+        sensor._zone.sensorstatus = status
+
+    assert zone_sensor.is_on is zone_on
+    assert status_sensor.is_on is connected
+    assert tamper_sensor.is_on is tampered
+
+
+def test_zone_status_sensor_names_the_panel_word(controller: MagicMock) -> None:
+    """The Status sensor's zone_status attribute is the panel's own status string."""
     sensor = ZoneSensor_Unreachable(controller, "1", UID)
-    sensor._zone.sensorstatus = "Closed"
-    assert sensor.is_on is True
-    sensor._zone.sensorstatus = "Unreachable"
+    assert sensor.device_class == BinarySensorDeviceClass.CONNECTIVITY
+
+    sensor._zone.sensorstatus = ZoneStatus.FAILURE
     assert sensor.is_on is False
+    assert sensor.extra_state_attributes == {"zone_status": "Failure"}
+
+    sensor._zone.sensorstatus = ZoneStatus.CLOSED
+    assert sensor.is_on is True
+    assert sensor.extra_state_attributes == {"zone_status": "Closed"}
+
+
+def test_zone_status_sensor_recovers_after_a_lost_link(controller: MagicMock) -> None:
+    """The #169 case: a smoke listener times out, then comes back, and Status follows both."""
+    sensor = ZoneSensor_Unreachable(controller, "1", UID)
+    sensor._zone.sensorstatus = ZoneStatus.CLOSED
+    assert sensor.is_on is True
+    sensor._zone.sensorstatus = ZoneStatus.FAILURE
+    assert sensor.is_on is False
+    sensor._zone.sensorstatus = ZoneStatus.CLOSED
+    assert sensor.is_on is True
 
 
 def test_zone_tamper(controller: MagicMock) -> None:
@@ -213,23 +286,6 @@ def test_zone_ac_status(controller: MagicMock) -> None:
     assert sensor.is_on is True
     sensor._zone.ac_status = "Fault"
     assert sensor.is_on is False
-
-
-@pytest.mark.parametrize(
-    ("status", "expected"),
-    [
-        (ZoneStatus.OPEN, True),
-        (ZoneStatus.ALARMED, True),
-        (ZoneStatus.CLOSED, False),
-    ],
-)
-def test_zones_sensor_is_on(
-    controller: MagicMock, status: ZoneStatus, expected: bool
-) -> None:
-    """The main zone sensor is on for open/active states."""
-    sensor = ZonesSensor(controller, "1", UID)
-    sensor._zone.sensorstatus = status
-    assert sensor.is_on is expected
 
 
 @pytest.mark.parametrize(
