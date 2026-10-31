@@ -8,6 +8,7 @@ from conftest import PANEL_MAC
 import pytest
 
 from custom_components.qolsys_panel.binary_sensor import (
+    KEYPAD_PROBLEM_STATUS,
     PANEL_SENSOR,
     AutomationDevice_Status,
     PanelSensor,
@@ -190,50 +191,94 @@ def test_panel_sensor_unknown_key(controller: MagicMock) -> None:
 
 
 @pytest.mark.parametrize(
-    ("status", "zone_on", "connected", "tampered"),
+    ("status", "zone_on", "keypad_on", "connected", "tampered"),
     [
-        # A door at rest.
-        (ZoneStatus.CLOSED, False, True, False),
-        (ZoneStatus.IDLE, False, True, False),
-        (ZoneStatus.NORMAL, False, True, False),
-        (ZoneStatus.INACTIVE, False, True, False),
+        # A door at rest. (keypad_on: the same status on a Keypad zone, the IQ
+        # Remote; Active is its resting word, so it is off there. Fork, 2026-10-31.)
+        (ZoneStatus.CLOSED, False, False, True, False),
+        (ZoneStatus.IDLE, False, False, True, False),
+        (ZoneStatus.NORMAL, False, False, True, False),
+        (ZoneStatus.INACTIVE, False, False, True, False),
         # Tripped: the main sensor is on, the link is fine.
-        (ZoneStatus.OPEN, True, True, False),
-        (ZoneStatus.ALARMED, True, True, False),
-        (ZoneStatus.ACTIVATED, True, True, False),
-        (ZoneStatus.ACTIVE, True, True, False),
-        (ZoneStatus.OCCUPIED, True, True, False),
+        (ZoneStatus.OPEN, True, True, True, False),
+        (ZoneStatus.ALARMED, True, True, True, False),
+        (ZoneStatus.ACTIVATED, True, True, True, False),
+        (ZoneStatus.ACTIVE, True, False, True, False),
+        (ZoneStatus.OCCUPIED, True, False, True, False),
         # Link trouble: the main sensor reads closed, Status reads Disconnected.
         # disconnected used to read as open (the pre-687ab08 behaviour).
-        (ZoneStatus.DISCONNECTED, False, False, False),
-        (ZoneStatus.UNREACHABLE, False, False, False),
-        (ZoneStatus.FAILURE, False, False, False),
-        (ZoneStatus.NOT_NETWORKED, False, False, False),
-        (ZoneStatus.TROUBLE, False, False, False),
-        (ZoneStatus.SYNCHRONIZING, False, False, False),
+        (ZoneStatus.DISCONNECTED, False, False, False, False),
+        (ZoneStatus.UNREACHABLE, False, False, False, False),
+        (ZoneStatus.FAILURE, False, False, False, False),
+        (ZoneStatus.NOT_NETWORKED, False, False, False, False),
+        (ZoneStatus.TROUBLE, False, False, False, False),
+        (ZoneStatus.SYNCHRONIZING, False, False, False, False),
         # Tamper has its own sensor; the link is fine and the door is not open.
-        (ZoneStatus.TAMPERED, False, True, True),
+        (ZoneStatus.TAMPERED, False, False, True, True),
         # A word the library has never seen raises no flag anywhere.
-        (ZoneStatus.UNKNOWN, False, True, False),
+        (ZoneStatus.UNKNOWN, False, False, True, False),
     ],
 )
 def test_zone_sensors_by_status(
     controller: MagicMock,
     status: ZoneStatus,
     zone_on: bool,
+    keypad_on: bool,
     connected: bool,
     tampered: bool,
 ) -> None:
-    """One panel status, three sensors: the zone itself, Status (connectivity), Tamper."""
+    """One panel status, three sensors: the zone itself, Status (connectivity), Tamper.
+
+    The zone sensor is read twice: as a door (the generic is_on()) and as a
+    keypad (the IQ Remote exception); Status and Tamper do not depend on type.
+    """
     zone_sensor = ZonesSensor(controller, "1", UID)
     status_sensor = ZoneSensor_Unreachable(controller, "1", UID)
     tamper_sensor = ZoneSensor_Tamper(controller, "1", UID)
     for sensor in (zone_sensor, status_sensor, tamper_sensor):
         sensor._zone.sensorstatus = status
+        sensor._zone.sensortype = ZoneSensorType.DOOR_WINDOW
 
     assert zone_sensor.is_on is zone_on
     assert status_sensor.is_on is connected
     assert tamper_sensor.is_on is tampered
+
+    for sensor in (zone_sensor, status_sensor, tamper_sensor):
+        sensor._zone.sensortype = ZoneSensorType.KEYPAD
+    assert zone_sensor.is_on is keypad_on
+    assert status_sensor.is_on is connected
+    assert tamper_sensor.is_on is tampered
+
+
+@pytest.mark.parametrize("status", sorted(ZoneStatus))
+def test_keypad_zone_is_on_only_for_a_problem(controller: MagicMock, status: ZoneStatus) -> None:
+    """Every ZoneStatus on a Keypad zone: on for Open, Alarmed, Activated, off for all the rest.
+
+    The IQ Remote (binary_sensor.zone20_iq_remote_1 in the house, device class
+    PROBLEM) sits at Active in normal service and read "Problem" from 1.10.0 on.
+    """
+    sensor = ZonesSensor(controller, "1", UID)
+    sensor._zone.sensortype = ZoneSensorType.KEYPAD
+    sensor._zone.sensorstatus = status
+    assert sensor.device_class == BinarySensorDeviceClass.PROBLEM
+    assert sensor.is_on is (status in KEYPAD_PROBLEM_STATUS)
+    assert sensor.is_on is (status in {ZoneStatus.OPEN, ZoneStatus.ALARMED, ZoneStatus.ACTIVATED})
+
+
+@pytest.mark.parametrize(
+    "sensortype",
+    [ZoneSensorType.MOTION, ZoneSensorType.PANEL_MOTION, ZoneSensorType.OCCUPANCY, ZoneSensorType.DOOR_WINDOW],
+)
+def test_active_still_reads_on_for_every_other_type(
+    controller: MagicMock, sensortype: ZoneSensorType
+) -> None:
+    """The keypad exception is the Keypad type alone: a motion sensor at Active is motion."""
+    sensor = ZonesSensor(controller, "1", UID)
+    sensor._zone.sensortype = sensortype
+    sensor._zone.sensorstatus = ZoneStatus.ACTIVE
+    assert sensor.is_on is True
+    sensor._zone.sensorstatus = ZoneStatus.IDLE
+    assert sensor.is_on is False
 
 
 def test_zone_status_sensor_names_the_panel_word(controller: MagicMock) -> None:

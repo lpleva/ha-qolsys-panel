@@ -44,6 +44,19 @@ PRESS_RESET_SECONDS = 0.5
 DEBOUNCE_SECONDS = 0.3
 ALARM_TYPE_ARRAY = ["Police", "Fire", "Auxiliary", "Gaz"]
 
+# Fork (2026-10-31): a keypad zone (sensortype "Keypad", which is how the panel
+# lists an IQ Remote, Home Assistant's own pairing included) rests at Active.
+# That is the keypad in service, not a problem, but 1.10.0's is_on() counts
+# Active as on for every zone (right for a motion sensor, which is what Active
+# means there), so the keypad's zone sensor, device class PROBLEM, read
+# "Problem" all day. For a keypad, on means one of these: the words 1.9.x read
+# as on, minus the link words (Unreachable, disconnected) the Status sensor
+# carries since 1.10.0. Active, Idle, Closed, Occupied and everything else read
+# off. Motion zones keep Active = on; this touches the Keypad type only.
+KEYPAD_PROBLEM_STATUS: frozenset[ZoneStatus] = frozenset(
+    {ZoneStatus.OPEN, ZoneStatus.ALARMED, ZoneStatus.ACTIVATED}
+)
+
 PANEL_SENSOR = [
     BinarySensorEntityDescription(
         key="AC_STATUS",
@@ -457,7 +470,12 @@ class ZonesSensor(QolsysZoneEntity, BinarySensorEntity):
         lost (disconnected, Unreachable) now reads off, where it used to read
         open: the Status sensor next to it carries the lost link (upstream
         687ab08, #170). Our own is_on(), see vendor/VENDORED.md.
+
+        A keypad zone is the exception: Active is its resting state, so it is
+        on only for KEYPAD_PROBLEM_STATUS (above).
         """
+        if self._zone.sensortype == ZoneSensorType.KEYPAD:
+            return self._zone.sensorstatus in KEYPAD_PROBLEM_STATUS
         return self._zone.is_on()
 
     @property
