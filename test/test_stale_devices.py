@@ -605,21 +605,26 @@ async def test_the_glitch_threshold_scales_with_the_install(
     assert set(watch.first_missing) == {devices["2"].id, devices["3"].id}
 
 
-async def test_timers_are_kept_per_entry_and_removed_with_it(
+async def test_removing_the_integration_removes_its_repairs_and_store(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_controller: MagicMock,
+    freezer: FrozenDateTimeFactory,
     hass_storage: dict,
 ) -> None:
-    """Removing the integration deletes its stale-zone store."""
+    """Home Assistant does not clear an integration's issues on entry removal; we do, then the store goes."""
     mock_config_entry.add_to_hass(hass)
-    _add_zone_devices(hass, mock_config_entry, "1", "9")
+    devices = _add_zone_devices(hass, mock_config_entry, "1", "9")
     await _setup(hass, mock_config_entry)
+    await _tick(hass, freezer, STALE_AFTER + A_DAY)
+    assert _issue(hass, devices["9"]) is not None
     key = storage_key(mock_config_entry.entry_id)
     assert key in hass_storage
 
     await hass.config_entries.async_remove(mock_config_entry.entry_id)
     await hass.async_block_till_done()
+
+    assert _issue(hass, devices["9"]) is None
     assert key not in hass_storage
 
 

@@ -19,7 +19,6 @@ from homeassistant.helpers import (
     issue_registry as ir,
 )
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -36,12 +35,11 @@ from .const import (
 )
 from .services import async_setup_services
 from .stale_devices import (
-    STORAGE_VERSION as STALE_STORAGE_VERSION,
     StaleZoneWatch,
+    async_remove_entry_data,
     get_watch,
     panel_has_device,
     set_watch,
-    storage_key as stale_storage_key,
 )
 from .types import QolsysPanelConfigEntry
 from .utils import get_local_ip
@@ -304,10 +302,8 @@ async def async_unload_entry(
 async def async_remove_entry(
     hass: HomeAssistant, entry: QolsysPanelConfigEntry
 ) -> None:
-    """Drop the stale-zone timers saved for an entry that is being removed."""
-    await Store(
-        hass, STALE_STORAGE_VERSION, stale_storage_key(entry.entry_id)
-    ).async_remove()
+    """Drop the stale-zone Repairs and timers saved for an entry that is being removed."""
+    await async_remove_entry_data(hass, entry.entry_id)
 
 
 async def async_remove_config_entry_device(

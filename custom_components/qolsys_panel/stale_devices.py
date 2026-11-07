@@ -325,9 +325,20 @@ class StaleZoneWatch:
     async def _async_save(self) -> None:
         await self._store.async_save({"first_missing": dict(self._first_missing)})
 
-    async def async_remove_storage(self) -> None:
-        """Delete the Store file (the config entry is being removed)."""
-        await self._store.async_remove()
+
+async def async_remove_entry_data(hass: HomeAssistant, entry_id: str) -> None:
+    """Delete an entry's stale-zone Repairs and its Store (the entry is being removed).
+
+    Home Assistant does not clear an integration's issues when a config entry
+    goes, so the Repairs would outlive the devices they point at; the saved
+    timers name every device that has one.
+    """
+    store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, storage_key(entry_id))
+    data = await store.async_load()
+    if isinstance(data, dict) and isinstance(data.get("first_missing"), dict):
+        for device_id in data["first_missing"]:
+            ir.async_delete_issue(hass, DOMAIN, issue_id(str(device_id)))
+    await store.async_remove()
 
 
 def _name(device: dr.DeviceEntry) -> str:
