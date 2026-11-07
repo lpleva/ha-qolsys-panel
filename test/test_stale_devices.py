@@ -22,6 +22,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.qolsys_panel import async_remove_config_entry_device
 from custom_components.qolsys_panel.const import DOMAIN
+from custom_components.qolsys_panel.entity import QolsysZoneEntity
 from custom_components.qolsys_panel.stale_devices import (
     CHECK_INTERVAL,
     MAX_MISSING_FLOOR,
@@ -32,6 +33,7 @@ from custom_components.qolsys_panel.stale_devices import (
     issue_id,
     panel_has_device,
     storage_key,
+    zone_id_of,
 )
 from custom_components.qolsys_panel.vendor.qolsys_controller.enum_qolsys import (
     ControllerState,
@@ -694,6 +696,76 @@ async def test_removing_the_integration_removes_its_repairs_and_store(
 
     assert _issue(hass, devices["9"]) is None
     assert key not in hass_storage
+
+
+async def test_a_real_zone_device_is_recognised(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """The identifier a zone entity really registers is what zone_id_of and panel_has_device read.
+
+    The other tests hand-type ``<uid>_zone<id>``; this one builds the device
+    from QolsysZoneEntity.device_info (as test_entity.py does), so a change to
+    the identifier scheme in entity.py fails here instead of silently making
+    every zone look unknown.
+    """
+    controller = MagicMock()
+    controller.controller_state = ControllerState.CONNECTED
+    _panel_lists(controller, "7")
+    uid = mock_config_entry.unique_id
+    mock_config_entry.add_to_hass(hass)
+
+    entity = QolsysZoneEntity(controller, "7", uid)
+    info = entity.device_info
+    assert info is not None
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=mock_config_entry.entry_id,
+        identifiers=info["identifiers"],
+        name=info.get("name"),
+    )
+
+    assert zone_id_of(device, uid) == "7"
+    assert panel_has_device(controller, uid, device) is True
+    _panel_lists(controller, "1")
+    assert panel_has_device(controller, uid, device) is False
+
+
+async def test_the_interval_stops_on_unload(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """After an unload the clock no longer asks the panel anything."""
+    mock_config_entry.add_to_hass(hass)
+    _add_zone_devices(hass, mock_config_entry, "1", "9")
+    await _setup(hass, mock_config_entry)
+
+    assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    mock_controller.state.zone.reset_mock()
+
+    await _tick(hass, freezer, CHECK_INTERVAL)
+    await _tick(hass, freezer, CHECK_INTERVAL)
+    mock_controller.state.zone.assert_not_called()
+
+
+async def test_a_tick_without_change_does_not_write_the_store(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A reading that changes no clock leaves the store alone (it is a file write per save)."""
+    mock_config_entry.add_to_hass(hass)
+    _add_zone_devices(hass, mock_config_entry, "1", "9")
+    watch = await _setup(hass, mock_config_entry)
+    assert len(watch.first_missing) == 1  # zone 9's clock was saved at setup
+
+    with patch.object(watch._store, "async_save", AsyncMock()) as save:
+        await _tick(hass, freezer, CHECK_INTERVAL)  # still missing, under 7 days
+        await _tick(hass, freezer, STALE_AFTER)  # raises the issue; no clock changed
+        save.assert_not_awaited()
+    assert len(watch.first_missing) == 1
 
 
 async def test_a_corrupt_store_is_ignored(
