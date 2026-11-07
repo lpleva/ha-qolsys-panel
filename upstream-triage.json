@@ -1243,9 +1243,11 @@
       "date": "2026-11-03",
       "subject": "feat: remove devices no longer present on the panel (#70) (#175)",
       "bucket": "ask",
-      "status": "approved",
+      "status": "implemented",
       "reason": "Removes Home Assistant devices. Split: (1) on every reload or HA restart, any zone, partition, automation device or camera device the panel does not report right then is deleted automatically, along with its entities and their renames, areas and dashboard references; (2) a manual Delete on a device page, allowed only when the panel no longer reports it. Both remove devices, so this is an ask. Two catches if taken: it calls state.ip_camera(), which our vendored library does not have (a 'camera' device would raise AttributeError), and the automatic pass has no guard against a panel that answers with a partial or empty zone list, which would wipe every zone device. The README edit in the same commit is declined.",
-      "implemented_in": [],
+      "implemented_in": [
+        "8ba62d8"
+      ],
       "triaged": "2026-11-07",
       "source": "triage",
       "decided": {
