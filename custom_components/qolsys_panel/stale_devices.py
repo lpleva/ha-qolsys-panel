@@ -45,6 +45,7 @@ entry (``async_remove_entry``).
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 import logging
 import math
@@ -174,7 +175,7 @@ class StaleZoneWatch:
         # did not list the zone.
         self._first_missing: dict[str, str] = {}
         self._unsub_interval: CALLBACK_TYPE | None = None
-        self._check_pending = False
+        self._check_task: asyncio.Task[None] | None = None
         # True after a mass-missing reading was logged at WARNING; cleared by
         # the next valid reading, so a persistent condition logs once.
         self._glitch_reported = False
@@ -198,24 +199,29 @@ class StaleZoneWatch:
 
     @callback
     def stop(self) -> None:
-        """Stop the periodic judgment (entry unload)."""
+        """Stop the periodic judgment and any check still queued (entry unload)."""
         if self._unsub_interval is not None:
             self._unsub_interval()
             self._unsub_interval = None
+        if self._check_task is not None:
+            self._check_task.cancel()
+            self._check_task = None
 
     @callback
     def schedule_check(self) -> None:
         """Run a judgment as a task; call on the event loop (``__init__`` does, via call_soon)."""
-        if self._check_pending:
+        if self._check_task is not None and not self._check_task.done():
             return
-        self._check_pending = True
-        self._hass.async_create_task(self._async_scheduled_check())
+        task = self._hass.async_create_task(self._async_scheduled_check())
+        # Home Assistant starts tasks eagerly: a check with nothing to await
+        # has already finished here, and there is nothing left to cancel.
+        self._check_task = None if task.done() else task
 
     async def _async_scheduled_check(self) -> None:
         try:
             await self.async_check()
         finally:
-            self._check_pending = False
+            self._check_task = None
 
     async def _on_interval(self, _now: datetime) -> None:
         await self.async_check()

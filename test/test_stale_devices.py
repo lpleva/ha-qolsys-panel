@@ -7,6 +7,7 @@ lacks (rule 1), raises a Repair after seven days of consistent readings (rule
 3) and ignores a reading that looks like a glitch (rule 4).
 """
 
+import asyncio
 from collections.abc import Generator
 from datetime import timedelta
 import logging
@@ -508,6 +509,42 @@ async def test_a_reconnect_triggers_a_check(
     status_callback()
     await hass.async_block_till_done()
     assert watch.first_missing == {}
+
+
+async def test_stop_cancels_a_queued_check(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+) -> None:
+    """A check still running at unload is cancelled rather than left against a stopped controller.
+
+    Home Assistant starts tasks eagerly, so a check that has nothing to await
+    finishes inside schedule_check and leaves no handle; one that is mid-await
+    (here: blocked inside async_check) is what stop() has to cancel.
+    """
+    mock_config_entry.add_to_hass(hass)
+    _add_zone_devices(hass, mock_config_entry, "1", "9")
+    watch = await _setup(hass, mock_config_entry)
+
+    # Nothing to await: finished eagerly, no handle kept.
+    watch.schedule_check()
+    assert watch._check_task is None
+
+    # Mid-await: the handle is kept and stop() cancels it.
+    with patch.object(watch, "async_check", AsyncMock(side_effect=_block_forever)):
+        watch.schedule_check()
+        assert watch._check_task is not None
+        task = watch._check_task
+        watch.stop()
+        await hass.async_block_till_done()
+
+    assert task.cancelled()
+    assert watch._check_task is None
+
+
+async def _block_forever(*_args, **_kwargs) -> None:
+    """A check that never finishes on its own."""
+    await asyncio.Event().wait()
 
 
 # --------------------------------------------------------------------------
