@@ -62,11 +62,22 @@ rules:
   icon-translations: done
   reconfiguration-flow: done
   repair-issues:
-    status: exempt
+    status: done
     comment: |
       Connection and authentication failures are surfaced through
-      ConfigEntryNotReady and ConfigEntryAuthFailed; there are no additional
-      user-actionable conditions that warrant a repair issue.
+      ConfigEntryNotReady and ConfigEntryAuthFailed. Three repair issues cover
+      the conditions a person has to act on: users.conf holds no codes, some
+      of its rows are malformed, and a zone the panel has not listed for seven
+      days (stale_devices.py).
+  stale-devices:
+    status: done
+    comment: |
+      Never automatic. A zone, partition or automation device the panel no
+      longer lists can be deleted from its device page
+      (async_remove_config_entry_device), and a zone missing for seven days of
+      consistent readings raises a repair that points there. Upstream's
+      delete-on-every-reload pass is deliberately not taken: one partial or
+      empty zone table would remove every zone device.
 
   # Platinum
   async-dependency: done

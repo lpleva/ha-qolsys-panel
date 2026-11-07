@@ -19,6 +19,7 @@ from homeassistant.helpers import (
     issue_registry as ir,
 )
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -34,6 +35,14 @@ from .const import (
     OPTION_MOTION_SENSOR_DELAY_ENABLED,
 )
 from .services import async_setup_services
+from .stale_devices import (
+    STORAGE_VERSION as STALE_STORAGE_VERSION,
+    StaleZoneWatch,
+    get_watch,
+    panel_has_device,
+    set_watch,
+    storage_key as stale_storage_key,
+)
 from .types import QolsysPanelConfigEntry
 from .utils import get_local_ip
 from .vendor.qolsys_controller import qolsys_controller
@@ -235,6 +244,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
             _LOGGER.info("Connection to Qolsys Panel lost, reconnecting")
         elif not was_connected and state == ControllerState.CONNECTED:
             _LOGGER.info("Connection to Qolsys Panel restored")
+            # A reconnect re-reads the whole zone table before the state
+            # flips, so this is a full reading: judge the stale-zone timers.
+            if (watch := get_watch(hass, entry.entry_id)) is not None:
+                watch.schedule_check()
         was_connected = state == ControllerState.CONNECTED
 
     def _on_panel_status_update() -> None:
@@ -266,6 +279,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
         model=f"Qolsys Panel ({QolsysPanel.panel.HARDWARE_VERSION})",
     )
 
+    # Zones the panel no longer lists: a Repair after seven days, never a
+    # deletion (our version of upstream dc5130c; see stale_devices.py).
+    watch = StaleZoneWatch(hass, entry, QolsysPanel)
+    set_watch(hass, entry.entry_id, watch)
+    entry.async_on_unload(watch.stop)
+    entry.async_on_unload(lambda: set_watch(hass, entry.entry_id, None))
+    await watch.async_start()
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -278,6 +299,66 @@ async def async_unload_entry(
         QolsysPanel = entry.runtime_data
         await QolsysPanel.stop()
     return unload_ok
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: QolsysPanelConfigEntry
+) -> None:
+    """Drop the stale-zone timers saved for an entry that is being removed."""
+    await Store(
+        hass, STALE_STORAGE_VERSION, stale_storage_key(entry.entry_id)
+    ).async_remove()
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    entry: QolsysPanelConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Allow the device page's Delete only for a device the panel no longer lists.
+
+    Our version of upstream dc5130c's manual half. Refuses (returns False)
+    for the panel's own device, for any zone, partition or automation device
+    the panel still reports, and whenever the answer cannot be trusted: the
+    integration is not loaded, the controller is not connected, the panel
+    lists no zones at all, or the device is of a kind we cannot look up (a
+    ``camera`` device; the vendored library has no camera list, so unlike
+    upstream nothing is called that does not exist). Nothing here deletes;
+    Home Assistant removes the device after a True.
+    """
+    unique_id = entry.unique_id
+    controller = getattr(entry, "runtime_data", None)
+    name = device_entry.name_by_user or device_entry.name or device_entry.id
+
+    if unique_id is None or controller is None:
+        _LOGGER.info(
+            "Refusing to delete device %s: the Qolsys Panel integration is not"
+            " loaded, so the panel cannot be asked whether it still has it",
+            name,
+        )
+        return False
+
+    has_it = panel_has_device(controller, unique_id, device_entry)
+    if has_it is False:
+        _LOGGER.info(
+            "Deleting device %s (%s): the panel no longer lists it",
+            name,
+            device_entry.id,
+        )
+        if (watch := get_watch(hass, entry.entry_id)) is not None:
+            await watch.async_forget(device_entry.id)
+        return True
+
+    _LOGGER.info(
+        "Refusing to delete device %s (%s): %s",
+        name,
+        device_entry.id,
+        "the panel still lists it"
+        if has_it
+        else "the panel is not connected, lists no zones, or this kind of"
+        " device cannot be checked against it",
+    )
+    return False
 
 
 async def async_migrate_entry(

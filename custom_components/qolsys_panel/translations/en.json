@@ -88,6 +88,10 @@
     "malformed_user_codes": {
       "title": "Qolsys Panel: some user codes could not be read",
       "description": "{count} entries in {path} were ignored because they are malformed, so those codes will not disarm. The file has been left as it is: fix the entries listed in the log and restart Home Assistant."
+    },
+    "stale_zone": {
+      "title": "Qolsys Panel: zone {zone_id} ({name}) has been gone from the panel for {days} days",
+      "description": "The panel has not listed zone {zone_id} ({name}) in any reading since {since}, so this device gets no updates and its entities stay on their last state. Home Assistant never deletes it on its own. If the sensor was removed from the panel for good, delete the device yourself: open Settings, then Devices & services, then Qolsys Panel, open the device, open its three-dot menu and choose Delete. Its entities, their names, area and dashboard references go with it. If the panel still has the sensor (it was only unplugged or is being re-paired), do nothing: this notice clears by itself the first time the panel lists the zone again."
     }
   },
   "exceptions": {

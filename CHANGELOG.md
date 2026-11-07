@@ -1,5 +1,56 @@
 ## Unreleased
 
+- **A zone deleted on the panel can now be deleted from its device page, and
+  a Repair says so after seven days; nothing is ever deleted automatically.**
+  Our own version of upstream dc5130c (#175, "remove devices no longer present
+  on the panel"). Upstream does two things: at every Home Assistant start and
+  every reload it deletes any zone, partition, automation or camera device the
+  panel does not report at that moment, and it adds a Delete to the device
+  page for the same set. The automatic half is not taken: it has no guard
+  against a panel that answers one reload with a partial or empty zone table,
+  so one bad reading would remove every door, window and smoke zone with its
+  name, area and dashboard spots, and it calls `state.ip_camera()`, which the
+  vendored library does not have, so a camera device would crash it. What this
+  fork does instead (`stale_devices.py`): **(1)** the device page's Delete
+  works, but only when the panel is connected and its complete zone table does
+  not list that zone, partition or automation device; the Panel device, anything
+  the panel still lists, a disconnected panel, an empty zone table and a kind
+  of device we cannot look up (`camera`, anything unknown) are refused, with the
+  reason in the log at INFO. **(2)** Nothing deletes a device on its own.
+  **(3)** A zone missing from the panel for seven days in a row raises a
+  Repair naming the zone and the date it went missing, with the device-page
+  steps in its text; it is not fixable from the Repair itself because the Delete
+  button already is the fix, and a second confirm flow would be the same action
+  behind more code. The first-missing time is kept per device in a
+  `helpers.storage.Store` (`.storage/qolsys_panel.stale_zones.<entry>`), so the
+  seven days survive restarts and reloads; the config entry was not used because
+  its data is the connection configuration and writing it fires update
+  listeners. The Repair and the clock clear when the panel lists the zone
+  again, when the device is deleted, or when the device disappears from the
+  registry by any other route; the store is deleted with the integration.
+  **(4)** A bad reading never counts: the judgment runs only while the
+  controller is CONNECTED (the library sets that after the full database sync,
+  so the table is complete), on each connect and every 6 hours after, and a
+  reading where the panel lists no zones at all, or where more than
+  `max(2, a quarter of the known zones)` are missing at once, is ignored with a
+  warning: no clock starts, none is cleared, no Repair is raised from it. The
+  floor of two lets a small install that genuinely lost one or two sensors
+  still get its Repair; the quarter scales for a large one (20 zones allow 5);
+  a half-read table or a whole-house wipe never starts a clock. **What this
+  changes in the house:** nothing on its own. If a sensor is ever removed from
+  the panel, its Home Assistant device stays with its last state, a Repair
+  appears a week later, and the device can then be deleted from its page; the
+  Panel device and every zone the panel still has refuse the Delete. 29 test
+  cases in `test_stale_devices.py` cover each rule: Delete refused for a listed zone,
+  the Panel, a camera (no crash), an unknown kind, a disconnected or unloaded
+  integration and an empty table, and allowed for a missing zone, partition
+  and automation device; the clock starting, being saved, surviving an unload
+  and reload, raising at exactly 7 days and not at 6 days 18 hours, clearing on
+  reappearance, on Delete and on a device removed another way; a reconnect
+  triggering a check; and the empty-table and mass-missing readings leaving
+  every clock alone while a stale device is still in the registry after seven
+  days, a reload and a reconnect. The README's removal section and
+  `quality_scale.yaml` (`repair-issues`, `stale-devices`) say the same.
 - **A zone the panel has put into an emergency state now reads on.** The panel
   writes six words of its own on a zone that raised an alarm: `Fire Emergency`
   (a smoke or heat detector that went off), `Police Emergency`, `Auxiliary
