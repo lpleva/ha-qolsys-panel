@@ -19,6 +19,13 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.zone import QolsysZ
 # Every ZoneStatus the library knows, with the two answers we expect for it.
 # A status missing from this table fails test_every_status_is_classified, so a
 # new panel value forces a decision instead of silently reading closed/connected.
+#
+# 2026-11-07: the six emergency words read on, taken from upstream library
+# 1.12.7 (integration 210f79f). They are the panel's own alarm words for a zone
+# that tripped (a smoke detector in Fire Emergency, a panic button in Police
+# Emergency), and a zone in them used to read off here while the panel sounded.
+# The other half of 1.12.7, Active off and Inactive on, is NOT taken: Active is
+# a motion sensor seeing motion, so it stays on, and Inactive stays off.
 CLASSIFICATION: dict[ZoneStatus, tuple[bool, bool]] = {
     # status: (is_on, is_trouble)
     ZoneStatus.ACTIVE: (True, False),
@@ -26,27 +33,27 @@ CLASSIFICATION: dict[ZoneStatus, tuple[bool, bool]] = {
     ZoneStatus.ALARMED: (True, False),
     ZoneStatus.ARM_AWAY: (False, False),
     ZoneStatus.ARM_STAY: (False, False),
-    ZoneStatus.AUXILIARY_EMERGENCY: (False, False),
+    ZoneStatus.AUXILIARY_EMERGENCY: (True, False),
     ZoneStatus.BELL_TROUBLE: (False, False),
     ZoneStatus.CLOSED: (False, False),
     ZoneStatus.CONNECTED: (False, False),
     ZoneStatus.DISARM: (False, False),
     ZoneStatus.FAILURE: (False, True),
-    ZoneStatus.FIRE_EMERGENCY: (False, False),
+    ZoneStatus.FIRE_EMERGENCY: (True, False),
     ZoneStatus.OPEN: (True, False),
     ZoneStatus.OCCUPIED: (True, False),
-    ZoneStatus.POLICE_EMERGENCY: (False, False),
+    ZoneStatus.POLICE_EMERGENCY: (True, False),
     ZoneStatus.INACTIVE: (False, False),
     ZoneStatus.IDLE: (False, False),
     ZoneStatus.NORMAL: (False, False),
     ZoneStatus.NOT_NETWORKED: (False, True),
     ZoneStatus.UNREACHABLE: (False, True),
-    ZoneStatus.SILENT_POLICE_EMERGENCY: (False, False),
-    ZoneStatus.SILENT_AUXILIARY_EMERGENCY: (False, False),
+    ZoneStatus.SILENT_POLICE_EMERGENCY: (True, False),
+    ZoneStatus.SILENT_AUXILIARY_EMERGENCY: (True, False),
     ZoneStatus.TAMPERED: (False, False),
     ZoneStatus.SYNCHRONIZING: (False, True),
     ZoneStatus.DISCONNECTED: (False, True),
-    ZoneStatus.HIGH_TEMP_ALERT: (False, False),
+    ZoneStatus.HIGH_TEMP_ALERT: (True, False),
     ZoneStatus.TROUBLE: (False, True),
     ZoneStatus.UNKNOWN: (False, False),
     ZoneStatus.VACANT: (False, False),

@@ -193,6 +193,15 @@ TroubleZoneStatus: list[ZoneStatus] = [
 #
 # OnZoneStatus: the zone's contact or detector is tripped. A sensor the panel has
 # lost (disconnected, Unreachable) is NOT on; its radio is gone, not its door open.
+#
+# The six emergency words (2026-11-07, from upstream library 1.12.7 / integration
+# 210f79f) are what the panel writes on a zone that raised an alarm itself: a
+# smoke or heat detector in Fire Emergency, a panic button or keypad in Police,
+# Auxiliary or one of the Silent emergencies, a temperature sensor in High Temp
+# Alert. Before, such a zone read off in Home Assistant while the panel was
+# sounding. 1.12.7 also flips Active to off and Inactive to on; NOT taken: on
+# this panel Active is a motion sensor seeing motion (1.10.0 reading, kept), and
+# Inactive is its resting word.
 OnZoneStatus: frozenset[ZoneStatus] = frozenset(
     {
         ZoneStatus.OPEN,
@@ -200,6 +209,12 @@ OnZoneStatus: frozenset[ZoneStatus] = frozenset(
         ZoneStatus.ACTIVATED,
         ZoneStatus.ACTIVE,
         ZoneStatus.OCCUPIED,
+        ZoneStatus.FIRE_EMERGENCY,
+        ZoneStatus.POLICE_EMERGENCY,
+        ZoneStatus.AUXILIARY_EMERGENCY,
+        ZoneStatus.SILENT_POLICE_EMERGENCY,
+        ZoneStatus.SILENT_AUXILIARY_EMERGENCY,
+        ZoneStatus.HIGH_TEMP_ALERT,
     }
 )
 

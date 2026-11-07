@@ -2,12 +2,12 @@
 
 Upstream: [EHylands/QolsysController](https://github.com/EHylands/QolsysController),
 PyPI package `qolsys-controller`, **version 1.8.6 plus three fixes from 1.9.x,
-the camera snapshot feature from 1.11.0 and the `garageTilt2` sensor group from
-1.12.5**
+the camera snapshot feature from 1.11.0, the `garageTilt2` sensor group from
+1.12.5 and the six emergency zone statuses from 1.12.7**
 (1.7.1 vendored 2026-09-07; the 1.7.2 and 1.8.0 changes applied 2026-09-12 from
 the PyPI wheels; 1.8.6 on 2026-09-19; three 1.8.7 to 1.9.13 fixes on 2026-10-09;
-the 1.11.0 camera code on 2026-10-10; the 1.12.5 sensor group on 2026-10-27,
-see "Upstream versions" below), taken from the
+the 1.11.0 camera code on 2026-10-10; the 1.12.5 sensor group on 2026-10-27;
+the 1.12.7 statuses on 2026-11-07, see "Upstream versions" below), taken from the
 `qolsys_controller-1.7.1-py3-none-any.whl` wheel published on PyPI.
 License: MIT, kept verbatim at `qolsys_controller/LICENSE`.
 
@@ -462,6 +462,22 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   untouched and nothing new reads it. Tests in
   `test/test_vendor_zone_status.py`; `test/test_vendor_arm_guard.py` gains
   real-zone cases so the guard is re-proven on this exact tree.
+- **1.12.7 (reviewed 2026-11-07, half taken):** one change, `zone.py::is_on()`
+  (the integration upstream pins it in 210f79f). Its `commands/panel.py` is
+  byte-identical to 1.12.6, so the L1 guard is still commented out there and
+  the library copy is still not replaced. **Taken, in `enum_qolsys.py`'s
+  `OnZoneStatus`:** the six emergency statuses now read on (`Fire Emergency`,
+  `Police Emergency`, `Auxiliary Emergency`, `Silent Police Emergency`,
+  `Silent Auxiliary Emergency`, `High Temp Alert`). They are the panel's own
+  alarm words for a zone that tripped, and a zone in one of them used to read
+  off in Home Assistant while the panel sounded. **Not taken (Lukas, 2026-11-07):**
+  1.12.7 also drops `Active` from the on set and adds `Inactive`. On this panel
+  `Active` is a motion sensor seeing motion (the 1.10.0 reading, kept since)
+  and `Inactive` is the same sensor at rest, so the fork keeps Active on and
+  Inactive off. `ConnectionTroubleZoneStatus` (behind `is_trouble()`) and
+  `TroubleZoneStatus` (the arm guard's list) are untouched; the six words are
+  in neither, so arming and the Status sensor decide exactly as before. The
+  classification table in `test/test_vendor_zone_status.py` says so per status.
 - **Fork fix, 2026-10-31 (no upstream counterpart): `SafetyZoneSensorGroup`
   gains `smoke_heat`, `co` and `WaterSensor`.** The L1 guard decides by that
   list, and upstream's six names did not include the groups the panel files

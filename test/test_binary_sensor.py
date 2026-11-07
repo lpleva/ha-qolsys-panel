@@ -198,6 +198,8 @@ def test_panel_sensor_unknown_key(controller: MagicMock) -> None:
         (ZoneStatus.CLOSED, False, False, True, False),
         (ZoneStatus.IDLE, False, False, True, False),
         (ZoneStatus.NORMAL, False, False, True, False),
+        # Inactive stays off (a motion sensor at rest); 1.12.7's flip to on
+        # is not taken, 2026-11-07.
         (ZoneStatus.INACTIVE, False, False, True, False),
         # Tripped: the main sensor is on, the link is fine.
         (ZoneStatus.OPEN, True, True, True, False),
@@ -205,6 +207,14 @@ def test_panel_sensor_unknown_key(controller: MagicMock) -> None:
         (ZoneStatus.ACTIVATED, True, True, True, False),
         (ZoneStatus.ACTIVE, True, False, True, False),
         (ZoneStatus.OCCUPIED, True, False, True, False),
+        # The panel's own alarm words for a zone that tripped (library 1.12.7,
+        # taken 2026-11-07): on, link fine. A keypad stays on its own short list.
+        (ZoneStatus.FIRE_EMERGENCY, True, False, True, False),
+        (ZoneStatus.POLICE_EMERGENCY, True, False, True, False),
+        (ZoneStatus.AUXILIARY_EMERGENCY, True, False, True, False),
+        (ZoneStatus.SILENT_POLICE_EMERGENCY, True, False, True, False),
+        (ZoneStatus.SILENT_AUXILIARY_EMERGENCY, True, False, True, False),
+        (ZoneStatus.HIGH_TEMP_ALERT, True, False, True, False),
         # Link trouble: the main sensor reads closed, Status reads Disconnected.
         # disconnected used to read as open (the pre-687ab08 behaviour).
         (ZoneStatus.DISCONNECTED, False, False, False, False),

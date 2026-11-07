@@ -466,10 +466,13 @@ class ZonesSensor(QolsysZoneEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         """Return True while the zone's contact or detector is tripped.
 
-        Open, Alarmed, Activated, Active and Occupied. A sensor the panel has
-        lost (disconnected, Unreachable) now reads off, where it used to read
-        open: the Status sensor next to it carries the lost link (upstream
-        687ab08, #170). Our own is_on(), see vendor/VENDORED.md.
+        Open, Alarmed, Activated, Active and Occupied, plus the panel's own
+        alarm words for a zone that tripped (Fire, Police, Auxiliary and the
+        two Silent emergencies, High Temp Alert; library 1.12.7, 2026-11-07).
+        A sensor the panel has lost (disconnected, Unreachable) reads off,
+        where it used to read open: the Status sensor next to it carries the
+        lost link (upstream 687ab08, #170). Our own is_on(), see
+        vendor/VENDORED.md.
 
         A keypad zone is the exception: Active is its resting state, so it is
         on only for KEYPAD_PROBLEM_STATUS (above).

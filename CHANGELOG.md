@@ -1,5 +1,29 @@
 ## Unreleased
 
+- **A zone the panel has put into an emergency state now reads on.** The panel
+  writes six words of its own on a zone that raised an alarm: `Fire Emergency`
+  (a smoke or heat detector that went off), `Police Emergency`, `Auxiliary
+  Emergency`, `Silent Police Emergency` and `Silent Auxiliary Emergency` (a
+  panic button or a keypad panic), and `High Temp Alert` (a temperature
+  sensor). None of them was in `OnZoneStatus`, so a zone in one of them read
+  off in Home Assistant while the panel was sounding; now all six read on.
+  Taken from upstream library 1.12.7 (integration 210f79f pins it), written
+  into the vendored `enum_qolsys.py` rather than taking the library, whose
+  `arm()` still ships with the audit L1 safety-zone guard commented out.
+  **Not taken, Lukas's call:** the other half of 1.12.7, which reads `Active`
+  as off and `Inactive` as on. On this panel Active is a motion sensor seeing
+  motion (the reading since 1.10.0) and Inactive is that sensor at rest, so
+  both stay as they were. The Status sensor (`is_trouble()`), the keypad
+  exception (an IQ Remote is on for Open, Alarmed and Activated only) and the
+  arm guard's list are untouched: the six words are in none of them, so
+  arming decides exactly as before. **What this changes in the house:** a
+  smoke detector that sets off the alarm now shows Smoke detected in Home
+  Assistant for as long as the panel keeps the zone at Fire Emergency, where
+  it used to show Clear throughout. Which zones in the house ever carry one of
+  the other five words is not known; nothing else moves. Tests: the classification table in
+  `test_vendor_zone_status.py` flips the six rows, and `test_binary_sensor.py`
+  reads each of the six through the real zone sensor as a door and as a
+  keypad (6 new cases).
 - **Arming now refuses a tripped smoke/heat, CO or reporting water zone.** The
   audit L1 guard (`commands/panel.py::arm`) decides by
   `SafetyZoneSensorGroup`, and that list had upstream's six names
