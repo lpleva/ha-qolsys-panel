@@ -166,6 +166,9 @@ class StaleZoneWatch:
         self._first_missing: dict[str, str] = {}
         self._unsub_interval: CALLBACK_TYPE | None = None
         self._check_pending = False
+        # True after a mass-missing reading was logged at WARNING; cleared by
+        # the next valid reading, so a persistent condition logs once.
+        self._glitch_reported = False
 
     @property
     def first_missing(self) -> dict[str, str]:
@@ -262,17 +265,29 @@ class StaleZoneWatch:
         # house that lost that many sensors.
         allowed = max(MAX_MISSING_FLOOR, math.floor(len(known) * MAX_MISSING_SHARE))
         if len(missing) > allowed:
-            _LOGGER.warning(
+            # Once at WARNING, then DEBUG while it persists: when that many
+            # sensors really were removed, this reading repeats every
+            # CHECK_INTERVAL until the devices are deleted.
+            _LOGGER.log(
+                logging.DEBUG if self._glitch_reported else logging.WARNING,
                 "The panel lists %d of the %d zones Home Assistant knows; %d missing"
-                " at once is more than %d, so this reading is ignored",
+                " at once is more than %d, so this reading is ignored and no stale-zone"
+                " repair will come from it. If those sensors really were removed from"
+                " the panel, delete their devices from their device pages: %s",
                 len(known) - len(missing),
                 len(known),
                 len(missing),
                 allowed,
+                ", ".join(
+                    f"zone {zone_id} ({_name(device)})"
+                    for zone_id, device in sorted(missing.values(), key=lambda m: m[0])
+                ),
             )
+            self._glitch_reported = True
             if changed:
                 await self._async_save()
             return
+        self._glitch_reported = False
 
         now = now or dt_util.utcnow()
 

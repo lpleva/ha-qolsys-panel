@@ -568,14 +568,45 @@ async def test_mass_missing_is_ignored(
     mock_controller: MagicMock,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Five known zones, the panel lists two: three missing is more than max(2, 1), so no clock starts."""
+    """Five known zones, the panel lists two: three missing is more than max(2, 1), so no clock starts.
+
+    The warning says what to do and names the zones, fires once, drops to
+    DEBUG while the condition persists, and is armed again by a valid reading.
+    """
     _panel_lists(mock_controller, "1", "2")
     mock_config_entry.add_to_hass(hass)
-    _add_zone_devices(hass, mock_config_entry, "1", "2", "3", "4", "5")
-    caplog.set_level(logging.WARNING)
+    devices = _add_zone_devices(hass, mock_config_entry, "1", "2", "3", "4", "5")
+    caplog.set_level(logging.DEBUG, logger="custom_components.qolsys_panel.stale_devices")
     watch = await _setup(hass, mock_config_entry)
     assert watch.first_missing == {}
-    assert "3 missing at once is more than 2, so this reading is ignored" in caplog.text
+
+    def ignored(level: int) -> list[str]:
+        return [
+            r.getMessage()
+            for r in caplog.records
+            if r.levelno == level and "so this reading is ignored" in r.getMessage()
+        ]
+
+    assert len(ignored(logging.WARNING)) == 1
+    message = ignored(logging.WARNING)[0]
+    assert "3 missing at once is more than 2" in message
+    assert "delete their devices from their device pages" in message
+    for zid in ("3", "4", "5"):
+        assert f"zone {zid} ({devices[zid].name})" in message
+    assert ignored(logging.DEBUG) == []
+
+    # Still missing at the next checks: DEBUG only.
+    await watch.async_check()
+    await watch.async_check()
+    assert len(ignored(logging.WARNING)) == 1
+    assert len(ignored(logging.DEBUG)) == 2
+
+    # A valid reading re-arms the warning.
+    _panel_lists(mock_controller, "1", "2", "3", "4", "5")
+    await watch.async_check()
+    _panel_lists(mock_controller, "1", "2")
+    await watch.async_check()
+    assert len(ignored(logging.WARNING)) == 2
 
 
 async def test_the_glitch_threshold_scales_with_the_install(
