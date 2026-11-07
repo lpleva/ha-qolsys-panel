@@ -64,9 +64,11 @@
   **Not taken, Lukas's call:** the other half of 1.12.7, which reads `Active`
   as off and `Inactive` as on. On this panel Active is a motion sensor seeing
   motion (the reading since 1.10.0) and Inactive is that sensor at rest, so
-  both stay as they were. The Status sensor (`is_trouble()`), the keypad
-  exception (an IQ Remote is on for Open, Alarmed and Activated only) and the
-  arm guard's list are untouched: the six words are in none of them, so
+  both stay as they were. The keypad exception in `binary_sensor.py` (an IQ
+  Remote rests at Active, so it reads its own short list instead of
+  `is_on()`) gets the same six words, so a panic pressed on the keypad shows
+  on too (review finding, 2026-11-07). The Status sensor (`is_trouble()`) and
+  the arm guard's list are untouched: the six words are in neither, so
   arming decides exactly as before. **What this changes in the house:** a
   smoke detector that sets off the alarm now shows Smoke detected in Home
   Assistant for as long as the panel keeps the zone at Fire Emergency, where
@@ -74,7 +76,7 @@
   the other five words is not known; nothing else moves. Tests: the classification table in
   `test_vendor_zone_status.py` flips the six rows, and `test_binary_sensor.py`
   reads each of the six through the real zone sensor as a door and as a
-  keypad (6 new cases).
+  keypad, on both ways (6 new cases, plus the every-status keypad test).
 - **Arming now refuses a tripped smoke/heat, CO or reporting water zone.** The
   audit L1 guard (`commands/panel.py::arm`) decides by
   `SafetyZoneSensorGroup`, and that list had upstream's six names

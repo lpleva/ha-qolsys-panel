@@ -477,6 +477,8 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   Inactive off. `ConnectionTroubleZoneStatus` (behind `is_trouble()`) and
   `TroubleZoneStatus` (the arm guard's list) are untouched; the six words are
   in neither, so arming and the Status sensor decide exactly as before. The
+  integration's keypad list (`binary_sensor.py::KEYPAD_PROBLEM_STATUS`, not
+  library code) gets the same six words so an IQ Remote panic reads on. The
   classification table in `test/test_vendor_zone_status.py` says so per status.
 - **Fork fix, 2026-10-31 (no upstream counterpart): `SafetyZoneSensorGroup`
   gains `smoke_heat`, `co` and `WaterSensor`.** The L1 guard decides by that

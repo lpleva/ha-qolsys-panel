@@ -51,10 +51,23 @@ ALARM_TYPE_ARRAY = ["Police", "Fire", "Auxiliary", "Gaz"]
 # means there), so the keypad's zone sensor, device class PROBLEM, read
 # "Problem" all day. For a keypad, on means one of these: the words 1.9.x read
 # as on, minus the link words (Unreachable, disconnected) the Status sensor
-# carries since 1.10.0. Active, Idle, Closed, Occupied and everything else read
-# off. Motion zones keep Active = on; this touches the Keypad type only.
+# carries since 1.10.0, plus (2026-11-07, library 1.12.7) the panel's six
+# emergency words, because a keypad is where a panic is pressed and a panic
+# showing off is wrong (Lukas's call, the same as for every other zone type).
+# Active, Idle, Closed, Occupied and everything else read off. Motion zones
+# keep Active = on; this touches the Keypad type only.
 KEYPAD_PROBLEM_STATUS: frozenset[ZoneStatus] = frozenset(
-    {ZoneStatus.OPEN, ZoneStatus.ALARMED, ZoneStatus.ACTIVATED}
+    {
+        ZoneStatus.OPEN,
+        ZoneStatus.ALARMED,
+        ZoneStatus.ACTIVATED,
+        ZoneStatus.FIRE_EMERGENCY,
+        ZoneStatus.POLICE_EMERGENCY,
+        ZoneStatus.AUXILIARY_EMERGENCY,
+        ZoneStatus.SILENT_POLICE_EMERGENCY,
+        ZoneStatus.SILENT_AUXILIARY_EMERGENCY,
+        ZoneStatus.HIGH_TEMP_ALERT,
+    }
 )
 
 PANEL_SENSOR = [
@@ -475,7 +488,8 @@ class ZonesSensor(QolsysZoneEntity, BinarySensorEntity):
         vendor/VENDORED.md.
 
         A keypad zone is the exception: Active is its resting state, so it is
-        on only for KEYPAD_PROBLEM_STATUS (above).
+        on only for KEYPAD_PROBLEM_STATUS (above), which carries the same six
+        emergency words.
         """
         if self._zone.sensortype == ZoneSensorType.KEYPAD:
             return self._zone.sensorstatus in KEYPAD_PROBLEM_STATUS

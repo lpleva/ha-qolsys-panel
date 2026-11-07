@@ -208,13 +208,14 @@ def test_panel_sensor_unknown_key(controller: MagicMock) -> None:
         (ZoneStatus.ACTIVE, True, False, True, False),
         (ZoneStatus.OCCUPIED, True, False, True, False),
         # The panel's own alarm words for a zone that tripped (library 1.12.7,
-        # taken 2026-11-07): on, link fine. A keypad stays on its own short list.
-        (ZoneStatus.FIRE_EMERGENCY, True, False, True, False),
-        (ZoneStatus.POLICE_EMERGENCY, True, False, True, False),
-        (ZoneStatus.AUXILIARY_EMERGENCY, True, False, True, False),
-        (ZoneStatus.SILENT_POLICE_EMERGENCY, True, False, True, False),
-        (ZoneStatus.SILENT_AUXILIARY_EMERGENCY, True, False, True, False),
-        (ZoneStatus.HIGH_TEMP_ALERT, True, False, True, False),
+        # taken 2026-11-07): on, link fine, as a door and as a keypad (a panic
+        # pressed on an IQ Remote must not show off).
+        (ZoneStatus.FIRE_EMERGENCY, True, True, True, False),
+        (ZoneStatus.POLICE_EMERGENCY, True, True, True, False),
+        (ZoneStatus.AUXILIARY_EMERGENCY, True, True, True, False),
+        (ZoneStatus.SILENT_POLICE_EMERGENCY, True, True, True, False),
+        (ZoneStatus.SILENT_AUXILIARY_EMERGENCY, True, True, True, False),
+        (ZoneStatus.HIGH_TEMP_ALERT, True, True, True, False),
         # Link trouble: the main sensor reads closed, Status reads Disconnected.
         # disconnected used to read as open (the pre-687ab08 behaviour).
         (ZoneStatus.DISCONNECTED, False, False, False, False),
@@ -262,17 +263,32 @@ def test_zone_sensors_by_status(
 
 @pytest.mark.parametrize("status", sorted(ZoneStatus))
 def test_keypad_zone_is_on_only_for_a_problem(controller: MagicMock, status: ZoneStatus) -> None:
-    """Every ZoneStatus on a Keypad zone: on for Open, Alarmed, Activated, off for all the rest.
+    """Every ZoneStatus on a Keypad zone: on for Open, Alarmed, Activated and the six emergency words, off for the rest.
 
     The IQ Remote (binary_sensor.zone20_iq_remote_1 in the house, device class
     PROBLEM) sits at Active in normal service and read "Problem" from 1.10.0 on.
+    The six emergency words were added 2026-11-07 (library 1.12.7): a panic
+    pressed on the keypad must not show off.
     """
     sensor = ZonesSensor(controller, "1", UID)
     sensor._zone.sensortype = ZoneSensorType.KEYPAD
     sensor._zone.sensorstatus = status
     assert sensor.device_class == BinarySensorDeviceClass.PROBLEM
     assert sensor.is_on is (status in KEYPAD_PROBLEM_STATUS)
-    assert sensor.is_on is (status in {ZoneStatus.OPEN, ZoneStatus.ALARMED, ZoneStatus.ACTIVATED})
+    assert sensor.is_on is (
+        status
+        in {
+            ZoneStatus.OPEN,
+            ZoneStatus.ALARMED,
+            ZoneStatus.ACTIVATED,
+            ZoneStatus.FIRE_EMERGENCY,
+            ZoneStatus.POLICE_EMERGENCY,
+            ZoneStatus.AUXILIARY_EMERGENCY,
+            ZoneStatus.SILENT_POLICE_EMERGENCY,
+            ZoneStatus.SILENT_AUXILIARY_EMERGENCY,
+            ZoneStatus.HIGH_TEMP_ALERT,
+        }
+    )
 
 
 @pytest.mark.parametrize(
