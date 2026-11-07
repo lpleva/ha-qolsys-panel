@@ -273,7 +273,7 @@ When a sensor is deleted on the panel, its device stays in Home Assistant with i
 
 To delete such a device: **Settings** > **Devices & services** > **Qolsys Panel**, open the device, click the **three dots menu** (⋮) and select **Delete**. The integration allows it only when the panel is connected and its zone table does not list that zone (the same for a partition or an automation device); the **Panel** device itself and anything the panel still lists are refused, with the reason in the log.
 
-If a zone stays missing from the panel for seven days of consistent readings, a **Repair** appears pointing at that Delete. It clears by itself if the panel lists the zone again, or when the device is deleted. A reading where the panel lists no zones at all, or where more than two zones (more than a quarter of them, in a larger install) are missing at once, is treated as a glitch and ignored.
+If a zone stays missing from the panel for seven days of consistent readings, a **Repair** appears pointing at that Delete. It clears by itself if the panel lists the zone again, or when the device is deleted. A reading where the panel lists no zones at all, or where more than two zones (more than a quarter of them, in a larger install) are missing at once, is treated as a glitch and ignored by the seven-day clock. The manual Delete applies only the first of those two checks: it refuses while the panel lists no zones, but it does not refuse because several zones are missing together, since that is exactly the case (several sensors replaced at once) where someone needs to clean up.
 
 ## ✨ Functionality Highlights
 

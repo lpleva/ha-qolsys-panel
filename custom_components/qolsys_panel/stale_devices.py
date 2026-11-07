@@ -18,6 +18,8 @@ What this module does instead:
    the zone, partition or automation device is gone. Anything the panel still
    lists, the panel's own root device, a kind we cannot judge (``camera``, an
    unknown suffix), a disconnected panel or an empty zone list all refuse.
+   The share half of the glitch rule (point 4) does not apply to a manual
+   Delete; :func:`panel_has_device` says why.
 2. **No automatic deletion, ever.** Nothing here calls
    ``async_remove_device``.
 3. **A Repair** once a zone has been missing from the panel for seven days in
@@ -118,6 +120,13 @@ def panel_has_device(
     zones at all (the glitch rule), a ``camera`` device (the vendored library
     keeps no camera list; upstream's ``state.ip_camera()`` does not exist
     here, which is the crash we avoid) and any identifier we do not know.
+
+    Only the empty-table half of the glitch rule applies here, not the
+    ``max(2, a quarter)`` share that :class:`StaleZoneWatch` uses: the share
+    protects an unattended clock from a half-read table, while this answers
+    one person deleting one device on purpose, and refusing them whenever
+    several sensors were replaced together would block the only cleanup
+    path in exactly that case.
     """
     if controller.controller_state != ControllerState.CONNECTED:
         return None

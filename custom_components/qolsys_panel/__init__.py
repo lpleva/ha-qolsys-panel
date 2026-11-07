@@ -319,8 +319,10 @@ async def async_remove_config_entry_device(
     integration is not loaded, the controller is not connected, the panel
     lists no zones at all, or the device is of a kind we cannot look up (a
     ``camera`` device; the vendored library has no camera list, so unlike
-    upstream nothing is called that does not exist). Nothing here deletes;
-    Home Assistant removes the device after a True.
+    upstream nothing is called that does not exist). The stale-zone clock's
+    "too many missing at once" share rule is deliberately not applied to a
+    manual Delete (see ``panel_has_device``). Nothing here deletes; Home
+    Assistant removes the device after a True.
     """
     unique_id = entry.unique_id
     controller = getattr(entry, "runtime_data", None)
