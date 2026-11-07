@@ -1226,6 +1226,72 @@
       "implemented_in": [],
       "triaged": "2026-10-31",
       "source": "triage"
+    },
+    {
+      "sha": "9be8c2f03236d8d3df13de543126add16fafae27",
+      "date": "2026-11-03",
+      "subject": "docs: add integration options section and users.conf setup for arm/disarm codes",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "README only: an options table and users.conf setup instructions. Upstream docs are declined; ours differ anyway (this fork hashes the codes in users.conf on first start, where the README describes them as plain JSON).",
+      "implemented_in": [],
+      "triaged": "2026-11-07",
+      "source": "triage"
+    },
+    {
+      "sha": "dc5130c274557b35a9c5f35179235072c67573ad",
+      "date": "2026-11-03",
+      "subject": "feat: remove devices no longer present on the panel (#70) (#175)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Removes Home Assistant devices. Split: (1) on every reload or HA restart, any zone, partition, automation device or camera device the panel does not report right then is deleted automatically, along with its entities and their renames, areas and dashboard references; (2) a manual Delete on a device page, allowed only when the panel no longer reports it. Both remove devices, so this is an ask. Two catches if taken: it calls state.ip_camera(), which our vendored library does not have (a 'camera' device would raise AttributeError), and the automatic pass has no guard against a panel that answers with a partial or empty zone list, which would wipe every zone device. The README edit in the same commit is declined.",
+      "implemented_in": [],
+      "triaged": "2026-11-07",
+      "source": "triage"
+    },
+    {
+      "sha": "2cbeddaee2e5bdf1e855efce8d21c6b9562317b3",
+      "date": "2026-11-04",
+      "subject": "1.13.0",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.13.0 semantic-release commit (changelog, manifest version, pyproject version, no code). This fork versions itself.",
+      "implemented_in": [],
+      "triaged": "2026-11-07",
+      "source": "triage"
+    },
+    {
+      "sha": "a99052b0c31d81a969cf7b5e8733401b8b7b90d8",
+      "date": "2026-11-04",
+      "subject": "fix: stop supervisory zones showing as device_class problem (#177)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Gives zones of sensor type Translator device class Problem (they had none). The subject says it stops them showing as Problem, but the diff does the reverse. None of the house's 20 zones is a translator, so nothing here changes for us: hardware we don't have, revisit if one is added. The same commit's manifest pin bump to qolsys-controller 1.12.7-beta.1 is declined, since we vendor the library.",
+      "implemented_in": [],
+      "triaged": "2026-11-07",
+      "source": "triage"
+    },
+    {
+      "sha": "210f79f1aacf9f2b84d1fceb0b46667e2c62fc88",
+      "date": "2026-11-05",
+      "subject": "fix: bump qolsys-controller to 1.12.7",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Manifest pin bump of PyPI qolsys-controller to 1.12.7. This fork vendors the library, so the pin does not apply. Library 1.12.7 (diffed against the 1.12.6 sdist) changes only zone.is_on(): Active now reads off and Inactive reads on, and six statuses now read on (Auxiliary, Fire, Police, Silent Auxiliary and Silent Police Emergency, High Temp Alert). Its commands/panel.py is byte-identical to 1.12.6, so it still lacks the safety-zone guard our audit L1 turned back on, and the library copy cannot be taken. The is_on change is a separate review: the Active/Inactive flip contradicts our 1.10.0/1.10.1 reading (Active = motion), and the emergency statuses are missing from our OnZoneStatus. Both would change what the zone sensors show, so they are for Lukas, not an automatic fix.",
+      "implemented_in": [],
+      "triaged": "2026-11-07",
+      "source": "triage"
+    },
+    {
+      "sha": "5affb93a2d4a0b2cea2c5265c5577c3dc985d67f",
+      "date": "2026-11-05",
+      "subject": "1.13.1",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.13.1 semantic-release commit (changelog, manifest version, pyproject version, no code). This fork versions itself.",
+      "implemented_in": [],
+      "triaged": "2026-11-07",
+      "source": "triage"
     }
   ]
 }
