@@ -273,22 +273,22 @@ def test_keypad_zone_is_on_only_for_a_problem(controller: MagicMock, status: Zon
     sensor = ZonesSensor(controller, "1", UID)
     sensor._zone.sensortype = ZoneSensorType.KEYPAD
     sensor._zone.sensorstatus = status
+    expected_on = {
+        ZoneStatus.OPEN,
+        ZoneStatus.ALARMED,
+        ZoneStatus.ACTIVATED,
+        ZoneStatus.FIRE_EMERGENCY,
+        ZoneStatus.POLICE_EMERGENCY,
+        ZoneStatus.AUXILIARY_EMERGENCY,
+        ZoneStatus.SILENT_POLICE_EMERGENCY,
+        ZoneStatus.SILENT_AUXILIARY_EMERGENCY,
+        ZoneStatus.HIGH_TEMP_ALERT,
+    }
     assert sensor.device_class == BinarySensorDeviceClass.PROBLEM
-    assert sensor.is_on is (status in KEYPAD_PROBLEM_STATUS)
-    assert sensor.is_on is (
-        status
-        in {
-            ZoneStatus.OPEN,
-            ZoneStatus.ALARMED,
-            ZoneStatus.ACTIVATED,
-            ZoneStatus.FIRE_EMERGENCY,
-            ZoneStatus.POLICE_EMERGENCY,
-            ZoneStatus.AUXILIARY_EMERGENCY,
-            ZoneStatus.SILENT_POLICE_EMERGENCY,
-            ZoneStatus.SILENT_AUXILIARY_EMERGENCY,
-            ZoneStatus.HIGH_TEMP_ALERT,
-        }
-    )
+    assert sensor.is_on is (status in expected_on)
+    # The constant itself is pinned to the same explicit set, so neither
+    # assert reads the code under test back to itself.
+    assert KEYPAD_PROBLEM_STATUS == expected_on
 
 
 @pytest.mark.parametrize(
