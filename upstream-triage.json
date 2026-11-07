@@ -1246,7 +1246,12 @@
       "status": "implemented",
       "reason": "Removes Home Assistant devices. Split: (1) on every reload or HA restart, any zone, partition, automation device or camera device the panel does not report right then is deleted automatically, along with its entities and their renames, areas and dashboard references; (2) a manual Delete on a device page, allowed only when the panel no longer reports it. Both remove devices, so this is an ask. Two catches if taken: it calls state.ip_camera(), which our vendored library does not have (a 'camera' device would raise AttributeError), and the automatic pass has no guard against a panel that answers with a partial or empty zone list, which would wipe every zone device. The README edit in the same commit is declined.",
       "implemented_in": [
-        "8ba62d8"
+        "8ba62d8c0a69b105ce1939c6e70af27d5680d9a0",
+        "b2e81b885e9eb10c91b23eeca579a79ca75410d8",
+        "723cba1ae27398cc3b9324a39d6b96a931d0fd1d",
+        "e165923f2a84b0e778a184ffb5571c1745b4c387",
+        "183cf2a518decc7e702603ce80961f9fd0571a9a",
+        "b61e8c0ebef97d2e4efd63bf2a9003168c207709"
       ],
       "triaged": "2026-11-07",
       "source": "triage",
@@ -1286,7 +1291,11 @@
       "reason": "Manifest pin bump of PyPI qolsys-controller to 1.12.7. This fork vendors the library, so the pin does not apply. Library 1.12.7 (diffed against the 1.12.6 sdist) changes only zone.is_on(): Active now reads off and Inactive reads on, and six statuses now read on (Auxiliary, Fire, Police, Silent Auxiliary and Silent Police Emergency, High Temp Alert). Its commands/panel.py is byte-identical to 1.12.6, so it still lacks the safety-zone guard our audit L1 turned back on, and the library copy cannot be taken. The is_on change is a separate review: the Active/Inactive flip contradicts our 1.10.0/1.10.1 reading (Active = motion), and the emergency statuses are missing from our OnZoneStatus. Both would change what the zone sensors show, so they are for Lukas, not an automatic fix.",
       "implemented_in": [],
       "triaged": "2026-11-07",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-11-07",
+        "note": "Lukas: the six emergency statuses (Fire, Police, Auxiliary, Silent Police and Silent Auxiliary Emergency, High Temp Alert) are taken in our own version, in the vendored enum_qolsys.py OnZoneStatus: commit b8fadd6138478c67da5fb6870be839ca9f3b3d04 (library set) and 8c9f66628fee29088a74947ca8f7672a8aea19e8 (the integration's keypad list), see VENDORED.md, the 1.12.7 entry. The Active off / Inactive on flip is rejected. The pin bump itself stays declined: the library is vendored."
+      }
     },
     {
       "sha": "5affb93a2d4a0b2cea2c5265c5577c3dc985d67f",
