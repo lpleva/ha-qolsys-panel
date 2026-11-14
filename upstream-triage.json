@@ -1307,6 +1307,138 @@
       "implemented_in": [],
       "triaged": "2026-11-07",
       "source": "triage"
+    },
+    {
+      "sha": "9a194c9707719f422cfa8a7467de97d01ce62669",
+      "date": "2026-11-07",
+      "subject": "fix: bump qolsys-controller to 1.12.8",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's pin bump of qolsys-controller to 1.12.8. This fork vendors the library and does not list it in manifest.json, so library changes are reviewed and taken into the vendored copy separately.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "14e4e478658cad811b28188606f107b6f67e2a16",
+      "date": "2026-11-07",
+      "subject": "1.13.2",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.13.2 release commit: version numbers and their changelog only.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "f08e3eadd20f65357d0566e8672b5c98b4624c01",
+      "date": "2026-11-08",
+      "subject": "fix: bump qolsys-controller to 1.13.0",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's pin bump of qolsys-controller to 1.13.0. We vendor the library, so the pin does not apply; any 1.13.0 library change gets its own review against the vendored copy.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "fc027cdfc3a753558ceac9c87a8d67145d5a5709",
+      "date": "2026-11-08",
+      "subject": "1.13.3",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.13.3 release commit: version numbers and their changelog only.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "c5c3d9ba045563f5a99448f8ab47f6a170bfce83",
+      "date": "2026-11-08",
+      "subject": "feat: add advanced MQTT settings to options flow (#178)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "New Configure options (collapsed Advanced section) for MQTT QoS, keepalive and command timeout on the connection that arms and disarms the alarm; defaults stay the library's 0/30 s/30 s. It also needs library 1.13.1: our vendored settings.py has no setter for mqtt_qos or mqtt_command_timeout, so taken alone it would fail setup; its manifest pin bump is declined as for the other bumps.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "28f247ace1af7f470e06e725f93a9f5e6195ff06",
+      "date": "2026-11-08",
+      "subject": "fix: use a select for MQTT QoS option (#179)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Turns the MQTT QoS option from c5c3d9b into a dropdown and stores it as an int. It only exists on top of c5c3d9b, so it goes with that decision.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "7d8547c66a3a7ca8215ba9c36d3503d9e49beda3",
+      "date": "2026-11-08",
+      "subject": "chore: append controller changelog on any pin change",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's GitHub release workflow (publish.yml) change for appending the library changelog to release notes; build/CI settings we do not use.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "651c19c6e3c54d4bfc28b553546283d300e1de12",
+      "date": "2026-11-09",
+      "subject": "1.14.0",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.14.0 release commit: version numbers and their changelog only.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "03351f29ec04368d649e5a99853ef8066a00f94b",
+      "date": "2026-11-09",
+      "subject": "1.14.1",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.14.1 release commit: version numbers and their changelog only.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "0c8fb9d7ae1b121f64fd7c04ef01eb4a189b70a9",
+      "date": "2026-11-09",
+      "subject": "fix: set reports_position on valve entity (#181)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Read-side fix for Z-Wave valve entities (position read from the device instead of a fixed flag); the house panel has no valve, only doors, windows, motion, glass break, flood, freeze and smoke zones. Revisit if you add a water shutoff valve; it would then be an implement.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "b4a7d47d1f62d1061eb3ec08441625b6cf2a8721",
+      "date": "2026-11-10",
+      "subject": "fix: bump qolsys-controller to 1.13.2",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's pin bump of qolsys-controller to 1.13.2. We vendor the library, so the pin does not apply; library changes are reviewed separately.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
+    },
+    {
+      "sha": "41a53b296c9043aa3fc3a71f4ec5c2270a235c4a",
+      "date": "2026-11-10",
+      "subject": "1.14.2",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.14.2 release commit: version numbers and their changelog only.",
+      "implemented_in": [],
+      "triaged": "2026-11-14",
+      "source": "triage"
     }
   ]
 }
