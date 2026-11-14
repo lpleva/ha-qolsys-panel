@@ -1372,11 +1372,15 @@
       "date": "2026-11-08",
       "subject": "fix: use a select for MQTT QoS option (#179)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "rejected",
       "reason": "Turns the MQTT QoS option from c5c3d9b into a dropdown and stores it as an int. It only exists on top of c5c3d9b, so it goes with that decision.",
       "implemented_in": [],
       "triaged": "2026-11-14",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-11-14",
+        "note": "Lukas: I guess skip for now (revisit if an arm/disarm command ever fails)"
+      }
     },
     {
       "sha": "7d8547c66a3a7ca8215ba9c36d3503d9e49beda3",
