@@ -1357,11 +1357,15 @@
       "date": "2026-11-08",
       "subject": "feat: add advanced MQTT settings to options flow (#178)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "rejected",
       "reason": "New Configure options (collapsed Advanced section) for MQTT QoS, keepalive and command timeout on the connection that arms and disarms the alarm; defaults stay the library's 0/30 s/30 s. It also needs library 1.13.1: our vendored settings.py has no setter for mqtt_qos or mqtt_command_timeout, so taken alone it would fail setup; its manifest pin bump is declined as for the other bumps.",
       "implemented_in": [],
       "triaged": "2026-11-14",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-11-14",
+        "note": "Lukas: I guess skip for now (revisit if an arm/disarm command ever fails)"
+      }
     },
     {
       "sha": "28f247ace1af7f470e06e725f93a9f5e6195ff06",
