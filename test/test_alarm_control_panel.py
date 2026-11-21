@@ -12,7 +12,7 @@ from custom_components.qolsys_panel.alarm_control_panel import (
     PartitionAlarmControlPanel,
     async_setup_entry,
 )
-from custom_components.qolsys_panel.const import DEFAULT_DISARM_CODE_REQUIRED
+from custom_components.qolsys_panel.const import DEFAULT_DISARM_CODE_REQUIRED, DOMAIN
 from custom_components.qolsys_panel.vendor.qolsys_controller.enum_qolsys import (
     PartitionAlarmState,
     PartitionArmingType,
@@ -373,6 +373,174 @@ async def test_arm_refused_by_an_unknown_zone_falls_back_to_its_id(
 def test_arm_refusal_templates_never_suggest_forcing(key: str) -> None:
     """The raw templates, in both languages, carry no force-arm wording."""
     _assert_no_way_around(_rendered(key, {"action": "arm away", "zones": "Zone"}))
+
+
+# --- Translated arm/disarm errors (our part of upstream 89ed4dd) -------------
+#
+# Only the three errors that were still plain English move to translation
+# keys. The invalid-code and open/safety-zone refusals keep this fork's own
+# keys and wording, and nothing different is sent to the panel.
+
+ACTION_FOR_METHOD = {
+    "async_alarm_arm_home": (PartitionArmingType.ARM_STAY, "arm home"),
+    "async_alarm_arm_away": (PartitionArmingType.ARM_AWAY, "arm away"),
+    "async_alarm_arm_night": (PartitionArmingType.ARM_NIGHT, "arm night"),
+}
+
+
+async def test_disarm_timeout_is_a_translated_error(controller: MagicMock) -> None:
+    """A panel that does not answer a disarm raises operation_timeout."""
+    entity = _panel(controller)
+    controller.settings.check_user_code_on_disarm = False
+    cast(AsyncMock, entity._partition.disarm).side_effect = QolsysOperationTimeoutError()
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await entity.async_alarm_disarm("1234")
+
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == "operation_timeout"
+    assert raised.value.translation_placeholders == {"action": "disarm"}
+    cast(AsyncMock, entity._partition.disarm).assert_awaited_once_with(user_code="1234")
+
+
+@pytest.mark.parametrize("method", sorted(ACTION_FOR_METHOD))
+async def test_arm_timeout_is_a_translated_error(
+    controller: MagicMock, method: str
+) -> None:
+    """A panel that does not answer an arm raises operation_timeout, per mode."""
+    arm_mode, action = ACTION_FOR_METHOD[method]
+    entity = _panel(controller)
+    controller.settings.check_user_code_on_arm = False
+    cast(AsyncMock, entity._partition.arm).side_effect = QolsysOperationTimeoutError()
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await getattr(entity, method)("1234")
+
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == "operation_timeout"
+    assert raised.value.translation_placeholders == {"action": action}
+    cast(AsyncMock, entity._partition.arm).assert_awaited_once_with(
+        arm_mode, user_code="1234"
+    )
+
+
+@pytest.mark.parametrize("method", sorted(ACTION_FOR_METHOD))
+async def test_arm_failure_is_a_translated_error(
+    controller: MagicMock, method: str
+) -> None:
+    """Any other arm failure raises arm_failed, naming the mode."""
+    arm_mode, action = ACTION_FOR_METHOD[method]
+    entity = _panel(controller)
+    controller.settings.check_user_code_on_arm = False
+    cast(AsyncMock, entity._partition.arm).side_effect = RuntimeError("boom")
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await getattr(entity, method)("1234")
+
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == "arm_failed"
+    assert raised.value.translation_placeholders == {"action": action}
+    cast(AsyncMock, entity._partition.arm).assert_awaited_once_with(
+        arm_mode, user_code="1234"
+    )
+
+
+async def test_disarm_failure_is_a_translated_error(controller: MagicMock) -> None:
+    """Any other disarm failure raises disarm_failed."""
+    entity = _panel(controller)
+    controller.settings.check_user_code_on_disarm = False
+    cast(AsyncMock, entity._partition.disarm).side_effect = RuntimeError("boom")
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await entity.async_alarm_disarm("1234")
+
+    assert raised.value.translation_domain == DOMAIN
+    assert raised.value.translation_key == "disarm_failed"
+    cast(AsyncMock, entity._partition.disarm).assert_awaited_once_with(user_code="1234")
+
+
+@pytest.mark.parametrize(
+    ("method", "action"),
+    [("async_alarm_disarm", "disarm")]
+    + [(m, a) for m, (_, a) in sorted(ACTION_FOR_METHOD.items())],
+)
+async def test_panel_rejected_code_keeps_our_user_code_invalid_error(
+    controller: MagicMock, method: str, action: str
+) -> None:
+    """A code the panel itself rejects still raises our user_code_invalid.
+
+    Upstream 89ed4dd's invalid_user_code key is not taken.
+    """
+    entity = _panel(controller)
+    controller.settings.check_user_code_on_arm = False
+    controller.settings.check_user_code_on_disarm = False
+    target = "disarm" if method == "async_alarm_disarm" else "arm"
+    cast(AsyncMock, getattr(entity._partition, target)).side_effect = (
+        QolsysUserCodeError()
+    )
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await getattr(entity, method)("1234")
+
+    assert raised.value.translation_key == "user_code_invalid"
+    assert raised.value.translation_placeholders == {"action": action}
+
+
+# The English wording of our own refusals, pinned: upstream's invalid-code and
+# open-zone messages (with their Force Arm hint) must not replace them.
+OUR_REFUSALS = {
+    "user_code_required": "Enter your user code to {action}.",
+    "user_code_invalid": (
+        "That user code is not valid. Check it and try to {action} again."
+    ),
+    "arm_blocked_safety_zones": (
+        "Could not {action}, these safety zones are not clear: {zones}. Smoke, "
+        "CO and water zones cannot be bypassed; clear them first, then try to "
+        "{action} again."
+    ),
+    "arm_blocked_open_zones": (
+        "Could not {action}, these zones are not ready: {zones}. Close or fix "
+        "them, then try to {action} again."
+    ),
+}
+
+
+@pytest.mark.parametrize(("key", "message"), sorted(OUR_REFUSALS.items()))
+def test_our_refusal_wording_is_unchanged(key: str, message: str) -> None:
+    """strings.json and en.json keep this fork's refusal messages word for word."""
+    for name in ("strings.json", "translations/en.json"):
+        data = json.loads((COMPONENT / name).read_text(encoding="utf-8"))
+        assert data["exceptions"][key]["message"] == message
+
+
+def test_upstream_alarm_keys_are_not_added() -> None:
+    """Upstream's invalid_user_code and zones_require_bypass keys stay out."""
+    for name in ("strings.json", "translations/en.json", "translations/fr-CA.json"):
+        exceptions = json.loads((COMPONENT / name).read_text(encoding="utf-8"))[
+            "exceptions"
+        ]
+        assert "invalid_user_code" not in exceptions
+        assert "zones_require_bypass" not in exceptions
+        assert "missing_unique_id" not in exceptions
+
+
+@pytest.mark.parametrize(
+    ("key", "placeholders"),
+    [
+        ("operation_timeout", {"action": "arm away"}),
+        ("arm_failed", {"action": "arm away"}),
+        ("disarm_failed", {}),
+    ],
+)
+def test_new_alarm_messages_render_in_every_language(
+    key: str, placeholders: dict[str, str]
+) -> None:
+    """Each new key exists in strings.json, en and fr-CA, formats, and hints at no force."""
+    strings = json.loads((COMPONENT / "strings.json").read_text(encoding="utf-8"))
+    assert key in strings["exceptions"]
+    texts = _rendered(key, placeholders)
+    assert all(texts)
+    _assert_no_way_around(texts)
 
 
 async def test_setup_without_unique_id_raises_value_error(
