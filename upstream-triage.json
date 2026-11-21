@@ -1486,11 +1486,15 @@
       "date": "2026-11-16",
       "subject": "fix: report zones unavailable instead of misleading openclosed states (#183) (#184)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "approved",
       "reason": "Mixed: makes a zone's door/window/smoke sensor unavailable (instead of our fork's \"reads closed\") while it is tampered or in trouble, and its tamper, battery, signal and temperature sensors unavailable while the zone is lost; the stale-readings half alone would be implement, but the main-sensor change reverses our fork's own lost-zone behavior. It also pins library 1.13.3b3 for the new is_available_* helpers (we vendor the library, so those would be written into our copy) and edits CI (declined).",
       "implemented_in": [],
       "triaged": "2026-11-21",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-11-21",
+        "note": "Lukas: yes"
+      }
     },
     {
       "sha": "34f05750bb4fd929ded697eb0d5471418870c0a2",
