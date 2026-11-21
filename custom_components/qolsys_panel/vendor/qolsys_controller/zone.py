@@ -155,6 +155,42 @@ class QolsysZone(QolsysObservable):
         """
         return self.sensorstatus in ConnectionTroubleZoneStatus
 
+    # Fork addition, our own version of upstream library 1.13.3b3 (integration
+    # cb11be0, #183/#184). The panel reports trouble and tamper in the same
+    # sensorstatus field that otherwise carries Open/Closed, so while a zone is
+    # in either its open/closed state is unknown. These four say which of the
+    # zone's values can still be trusted; the integration turns them into
+    # entity availability. Nothing here touches TroubleZoneStatus or the arm()
+    # guard that walks it.
+
+    def is_tampered(self) -> bool:
+        """True while the panel reports the zone's cover off."""
+        return self.sensorstatus == ZoneStatus.TAMPERED
+
+    def is_available_reading(self) -> bool:
+        """True while the zone's own readings (battery, AC, dBm, PowerG) are current.
+
+        They come from the sensor over its radio link, so they go stale only
+        while the link is in trouble; a tamper does not affect them.
+        """
+        return not self.is_trouble()
+
+    def is_available_status(self) -> bool:
+        """True while the zone's open/closed state is known.
+
+        Not while the link is in trouble, the cover is off, or the panel sent a
+        status word this library does not know (Unknown).
+        """
+        return (
+            not self.is_trouble()
+            and not self.is_tampered()
+            and self.sensorstatus != ZoneStatus.UNKNOWN
+        )
+
+    def is_available_tamper(self) -> bool:
+        """True while the zone's tamper state is known: tampered, or the status is."""
+        return self.is_tampered() or self.is_available_status()
+
     def supports_averagedbm(self) -> bool:
         return self.averagedBm is not None
 

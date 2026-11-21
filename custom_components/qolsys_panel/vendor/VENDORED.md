@@ -3,11 +3,12 @@
 Upstream: [EHylands/QolsysController](https://github.com/EHylands/QolsysController),
 PyPI package `qolsys-controller`, **version 1.8.6 plus three fixes from 1.9.x,
 the camera snapshot feature from 1.11.0, the `garageTilt2` sensor group from
-1.12.5 and the six emergency zone statuses from 1.12.7**
+1.12.5, the six emergency zone statuses from 1.12.7, and four zone availability
+helpers from 1.13.3b3**
 (1.7.1 vendored 2026-09-07; the 1.7.2 and 1.8.0 changes applied 2026-09-12 from
 the PyPI wheels; 1.8.6 on 2026-09-19; three 1.8.7 to 1.9.13 fixes on 2026-10-09;
 the 1.11.0 camera code on 2026-10-10; the 1.12.5 sensor group on 2026-10-27;
-the 1.12.7 statuses on 2026-11-07, see "Upstream versions" below), taken from the
+the 1.12.7 statuses on 2026-11-07; the 1.13.3b3 helpers on 2026-11-21, see "Upstream versions" below), taken from the
 `qolsys_controller-1.7.1-py3-none-any.whl` wheel published on PyPI.
 License: MIT, kept verbatim at `qolsys_controller/LICENSE`.
 
@@ -480,6 +481,20 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   integration's keypad list (`binary_sensor.py::KEYPAD_PROBLEM_STATUS`, not
   library code) gets the same six words so an IQ Remote panic reads on. The
   classification table in `test/test_vendor_zone_status.py` says so per status.
+- **1.13.3b3 (reviewed 2026-11-21, four helpers written our own way, not taken):**
+  the integration's cb11be0 (#183/#184, approved by Lukas 2026-11-21) pins
+  1.13.3b3 for four `QolsysZone` methods: `is_tampered()` (status Tampered),
+  `is_available_reading()` (not `is_trouble()`: battery, AC, dBm and PowerG
+  readings are current), `is_available_status()` (not in trouble, not
+  tampered, not Unknown: the open/closed state is known) and
+  `is_available_tamper()` (tampered, or the status is known). They are added to
+  our `zone.py` with the same meaning; our `is_trouble()` reads
+  `ConnectionTroubleZoneStatus`, the same six statuses as upstream's inline set.
+  The library copy is still not replaced: 1.13.3b3's `commands/panel.py::arm`
+  collects `open_safety_zones` and never refuses on them (audit L1 still off)
+  and keeps the Force Arm bypass. `TroubleZoneStatus` and the arm guard are
+  untouched. Tests in `test/test_vendor_zone_availability.py` (every
+  `ZoneStatus`) and `test/test_zone_availability.py` (the entities).
 - **Fork fix, 2026-10-31 (no upstream counterpart): `SafetyZoneSensorGroup`
   gains `smoke_heat`, `co` and `WaterSensor`.** The L1 guard decides by that
   list, and upstream's six names did not include the groups the panel files
