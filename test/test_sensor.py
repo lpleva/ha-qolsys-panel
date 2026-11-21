@@ -29,11 +29,15 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.automation.service_
     SensorService,
 )
 from custom_components.qolsys_panel.vendor.qolsys_controller.enum_qolsys import (
+    ConnectionTroubleZoneStatus,
+    ControllerState,
     PartitionError,
     QolsysMeterScale,
     QolsysNotification,
     QolsysSensorScale,
+    ZoneStatus,
 )
+from custom_components.qolsys_panel.vendor.qolsys_controller.zone import QolsysZone
 from custom_components.qolsys_panel.vendor.qolsys_controller.observable import Event
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.core import HomeAssistant
@@ -103,7 +107,17 @@ def controller() -> MagicMock:
         "is_powerg_battery_voltage_enabled",
     ):
         getattr(zone, flag).return_value = True
+    # The status helpers run for real against whatever sensorstatus a test
+    # sets (as in test_binary_sensor.py), so availability is tested against
+    # the vendored logic and not a MagicMock's always-truthy return.
+    zone.sensorstatus = ZoneStatus.CLOSED
+    zone.is_trouble.side_effect = lambda: QolsysZone.is_trouble(zone)
+    zone.is_tampered.side_effect = lambda: QolsysZone.is_tampered(zone)
+    zone.is_available_reading.side_effect = lambda: QolsysZone.is_available_reading(zone)
+    zone.is_available_status.side_effect = lambda: QolsysZone.is_available_status(zone)
+    zone.is_available_tamper.side_effect = lambda: QolsysZone.is_available_tamper(zone)
     c.state.zones = [zone]
+    c.state.zone.return_value = zone
 
     battery_service = MagicMock()
     battery_service.endpoint = 0
@@ -265,6 +279,27 @@ def test_zone_sensor_native_value(controller: MagicMock, sensor_cls, attr) -> No
     sensor = sensor_cls(controller, "1", UID)
     setattr(sensor._zone, attr, 42)
     assert sensor.native_value == 42
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (ZoneStatus.CLOSED, True),
+        (ZoneStatus.OPEN, True),
+        (ZoneStatus.TAMPERED, True),
+        (ZoneStatus.UNKNOWN, True),
+        *[(s, False) for s in sorted(ConnectionTroubleZoneStatus)],
+    ],
+)
+@pytest.mark.parametrize(("sensor_cls", "attr"), ZONE_SENSORS)
+def test_zone_sensor_available(
+    controller: MagicMock, sensor_cls, attr, status: ZoneStatus, expected: bool
+) -> None:
+    """Zone readings survive a tamper but go stale while the zone is lost (upstream cb11be0)."""
+    controller.controller_state = ControllerState.CONNECTED
+    sensor = sensor_cls(controller, "1", UID)
+    sensor._zone.sensorstatus = status
+    assert sensor.available is expected
 
 
 def test_automation_battery_value(controller: MagicMock) -> None:

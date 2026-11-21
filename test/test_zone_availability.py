@@ -18,6 +18,7 @@ These tests use real vendored QolsysZone objects, so they exercise the
 library helpers and the entities together.
 """
 
+import asyncio
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -95,6 +96,38 @@ def _controller(zone: QolsysZone, state: ControllerState = ControllerState.CONNE
     c.state.zone.return_value = zone
     c.state.zones = [zone]
     return c
+
+
+async def test_motion_zone_with_delay_option_returns_to_idle_after_the_delay() -> None:
+    """Inherited from upstream 1.13.3b3: with the Motion sensor delay option on,
+    any status on a motion zone, a lost or tampered one included, is
+    overwritten with Idle once the delay (310 s by default) runs out, so the
+    zone reads available and off again. Documented in VENDORED.md; the option
+    is off by default.
+    """
+    settings = MagicMock()
+    settings.motion_sensor_delay = True
+    settings.motion_sensor_delay_sec = 0
+    zone = QolsysZone(
+        {
+            "zoneid": "1",
+            "sensorname": "Hall Motion",
+            "sensorstatus": "Closed",
+            "sensorgroup": "awayinstantmotion",
+            "sensortype": "Motion",
+            "partition_id": "1",
+        },
+        settings,
+    )
+    entity = ZonesSensor(_controller(zone), "1", UID)
+
+    zone.sensorstatus = ZoneStatus.FAILURE
+    assert entity.available is False
+
+    await asyncio.sleep(0.01)
+    assert zone.sensorstatus is ZoneStatus.IDLE
+    assert entity.available is True
+    assert entity.is_on is False
 
 
 def _set_status(zone: QolsysZone, status: ZoneStatus) -> None:
@@ -260,7 +293,15 @@ EXPECTED_UNIQUE_IDS = {
     ZoneSensor_ACStatus: f"{UID}_zone1_ac_status",
     ZoneSensor_LatestDBM: f"{UID}_zone1_latestdBm",
     ZoneSensor_AverageDBM: f"{UID}_zone1_averagedBm",
+    ZoneSensor_PowerG_Temperature: f"{UID}_zone1_powerg_temperature",
+    ZoneSensor_PowerG_Light: f"{UID}_zone1_powerg_light",
+    ZoneSensor_BatteryLevel: f"{UID}_zone1_powerg_battery_level",
+    ZoneSensor_BatteryVoltage: f"{UID}_zone1_powerg_battery_voltage",
 }
+
+
+def test_z5_every_zone_entity_has_a_pinned_id() -> None:
+    assert set(EXPECTED_UNIQUE_IDS) == set(ALL_ZONE_ENTITIES)
 
 
 @pytest.mark.parametrize(("entity_cls", "unique_id"), list(EXPECTED_UNIQUE_IDS.items()))
