@@ -1453,11 +1453,15 @@
       "date": "2026-11-15",
       "subject": "fix: remove device prefixes from panel scene names (#185)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "rejected",
       "reason": "Renames the panel scene entities from \"Qolsys Panel - <scene>\" to \"<scene> Scene\"; entity ids stay but the friendly names change, so it is a naming change.",
       "implemented_in": [],
       "triaged": "2026-11-21",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-11-21",
+        "note": "Lukas: no"
+      }
     },
     {
       "sha": "b35825d50286c6f9ae6aeb5a547df7c3cef06f68",
