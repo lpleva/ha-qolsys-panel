@@ -1608,6 +1608,8 @@
       "reason": "Metadata cleanup in quality_scale.yaml (adds the four missing rules, corrects action-setup and entity-translations), no behavior change; merge with our own stale-devices and repair-issues entries and keep has-entity-name honest for our tree, since 820cf52 is an ask.",
       "implemented_in": [
         "4a118ee1a72b805f181fe49e8fc372ade64a90b4",
+        "60fd74c774cbced6e187b342459b7750604fcc97",
+        "c9958d33fafa050e32cc0096afcfc678c5e3c4d8",
         "d80b5fb7f433603f78b2cdd0afb98d8a25472934"
       ],
       "triaged": "2026-11-21",
