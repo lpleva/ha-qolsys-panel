@@ -1557,9 +1557,12 @@
       "date": "2026-11-16",
       "subject": "fix: translate alarm panel and setup errors (#193)",
       "bucket": "implement",
-      "status": "pending",
+      "status": "implemented",
       "reason": "Split: take only the translated messages for the three arm/disarm errors our fork still raises in plain English (panel timed out, other arm failure, other disarm failure), wording only with nothing different sent to the panel. Not taken: upstream's invalid-code and open-zone messages, which would replace our clearer translated ones and reintroduce the declined Force Arm hint, and the ConfigEntryError for a missing unique_id, which would undo audit N5 (our platforms raise ValueError on purpose).",
-      "implemented_in": [],
+      "implemented_in": [
+        "3f5005b9791d3647e3eaf45c81cfffa00c9f9bd2",
+        "56d9017262a163622577becf03273251144f1b45"
+      ],
       "triaged": "2026-11-21",
       "source": "triage"
     },
