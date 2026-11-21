@@ -1533,9 +1533,11 @@
       "date": "2026-11-16",
       "subject": "test: cover remaining config flow error paths (#190)",
       "bucket": "implement",
-      "status": "pending",
+      "status": "implemented",
       "reason": "Tests only: covers the config flow's remaining error paths (unexpected pairing-task error, AbortFlow keeping its reason, cancellation during controller stop); adapt to our audited flow where it differs.",
-      "implemented_in": [],
+      "implemented_in": [
+        "d604d88f1af55bc6d76d20bcb85fec5e9651518a"
+      ],
       "triaged": "2026-11-21",
       "source": "triage"
     },
