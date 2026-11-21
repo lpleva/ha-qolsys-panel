@@ -1447,6 +1447,160 @@
       "implemented_in": [],
       "triaged": "2026-11-14",
       "source": "triage"
+    },
+    {
+      "sha": "3a83adfe376d1f25f38947133227ec4a5446e9ce",
+      "date": "2026-11-15",
+      "subject": "fix: remove device prefixes from panel scene names (#185)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Renames the panel scene entities from \"Qolsys Panel - <scene>\" to \"<scene> Scene\"; entity ids stay but the friendly names change, so it is a naming change.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "b35825d50286c6f9ae6aeb5a547df7c3cef06f68",
+      "date": "2026-11-16",
+      "subject": "1.14.3",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream version bump to 1.14.3 (their CHANGELOG, manifest version, pyproject).",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "da9e32cceb00ea3cfcc506d0ea59f1089e503efe",
+      "date": "2026-11-16",
+      "subject": "ci: rebuild dev at the start of every beta build (#186)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream CI workflow change (dev branch rebuild for beta builds); no integration code.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "cb11be0fea06ce6ba8a000579476f6f69c17c282",
+      "date": "2026-11-16",
+      "subject": "fix: report zones unavailable instead of misleading openclosed states (#183) (#184)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Mixed: makes a zone's door/window/smoke sensor unavailable (instead of our fork's \"reads closed\") while it is tampered or in trouble, and its tamper, battery, signal and temperature sensors unavailable while the zone is lost; the stale-readings half alone would be implement, but the main-sensor change reverses our fork's own lost-zone behavior. It also pins library 1.13.3b3 for the new is_available_* helpers (we vendor the library, so those would be written into our copy) and edits CI (declined).",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "34f05750bb4fd929ded697eb0d5471418870c0a2",
+      "date": "2026-11-16",
+      "subject": "ci: disable squash commit body parsing (#187)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Their release tooling setting (semantic-release squash-commit parsing in pyproject.toml); no integration code.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "2a3f388b910a0ceba017801328964844ba0041d4",
+      "date": "2026-11-16",
+      "subject": "ci: rebuild dev only at the start of a beta build (#188)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream CI workflow changes (rebuild dev only at the start of a beta build); no integration code.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "f4332f1a39fc02180ef92a88c86e07877ebce86c",
+      "date": "2026-11-16",
+      "subject": "chore: ship brand images with the integration (#189)",
+      "bucket": "implement",
+      "status": "pending",
+      "reason": "Ships the integration's icon and logo PNGs in a brand/ folder, which Home Assistant 2026.3+ reads ahead of the brands CDN whose custom-integration folder is now legacy; static images only, no code or network change.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "7ddb3c748e12d0d2b2b73b62b69e50729e7ad3ab",
+      "date": "2026-11-16",
+      "subject": "test: cover remaining config flow error paths (#190)",
+      "bucket": "implement",
+      "status": "pending",
+      "reason": "Tests only: covers the config flow's remaining error paths (unexpected pairing-task error, AbortFlow keeping its reason, cancellation during controller stop); adapt to our audited flow where it differs.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "820cf5296df424e2a31c281ae04e8d9c178846bb",
+      "date": "2026-11-16",
+      "subject": "fix: use has_entity_name for scene and weather entities (#192)",
+      "bucket": "ask",
+      "status": "waiting_on_lukas",
+      "reason": "Turns on has_entity_name for the scene and weather entities, so their friendly names gain the panel device name in front (\"Panel Weather\", \"Panel Good Night Scene\"); entity ids stay, but the names on dashboards change.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "89ed4ddffba30b8156ac5ccd605aca1d17c639f4",
+      "date": "2026-11-16",
+      "subject": "fix: translate alarm panel and setup errors (#193)",
+      "bucket": "implement",
+      "status": "pending",
+      "reason": "Split: take only the translated messages for the three arm/disarm errors our fork still raises in plain English (panel timed out, other arm failure, other disarm failure), wording only with nothing different sent to the panel. Not taken: upstream's invalid-code and open-zone messages, which would replace our clearer translated ones and reintroduce the declined Force Arm hint, and the ConfigEntryError for a missing unique_id, which would undo audit N5 (our platforms raise ValueError on purpose).",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "262de483a75e493f58116cba66a19e3a9efcd77d",
+      "date": "2026-11-16",
+      "subject": "docs: add automation examples (#194)",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Their README automation examples plus flipping docs-examples to done in quality_scale.yaml, which is only true with their README.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "26e9b4a515c0423b2550a03f04c7a70e943594cd",
+      "date": "2026-11-17",
+      "subject": "fix: bump qolsys-controller to 1.13.3",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Dependency pin bump of qolsys-controller to 1.13.3, a library we vendor; the is_available_* helpers cb11be0 needs would be copied into our vendored copy only if that commit is taken.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "782c5818ba50bcce66a256e6665c06fb646c730b",
+      "date": "2026-11-17",
+      "subject": "1.14.4",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream version bump to 1.14.4 (their CHANGELOG, manifest version, pyproject).",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
+    },
+    {
+      "sha": "b687704cff3f7877fa99facc62fb178e98fb20ab",
+      "date": "2026-11-17",
+      "subject": "chore: correct quality scale rule statuses (#191)",
+      "bucket": "implement",
+      "status": "pending",
+      "reason": "Metadata cleanup in quality_scale.yaml (adds the four missing rules, corrects action-setup and entity-translations), no behavior change; merge with our own stale-devices and repair-issues entries and keep has-entity-name honest for our tree, since 820cf52 is an ask.",
+      "implemented_in": [],
+      "triaged": "2026-11-21",
+      "source": "triage"
     }
   ]
 }
