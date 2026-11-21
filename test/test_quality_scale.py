@@ -92,9 +92,20 @@ def test_rule_status(rule: str, status: str) -> None:
     assert _status(_rules()[rule]) == status
 
 
-@pytest.mark.parametrize("rule", ["repair-issues", "stale-devices"])
-def test_our_own_explanations_are_kept(rule: str) -> None:
-    """Our stale-devices and repair-issues comments survive the merge."""
+@pytest.mark.parametrize(
+    ("rule", "phrase"),
+    [
+        # Our own explanations, kept over upstream's
+        ("repair-issues", "stale_devices.py"),
+        ("stale-devices", "Never automatic"),
+        # has-entity-name stays done while 820cf52 waits on Lukas, and says so
+        ("has-entity-name", "820cf52"),
+        # The vendored library is excluded from mypy; only call sites are checked
+        ("strict-typing", "vendored"),
+    ],
+)
+def test_rule_comment_says(rule: str, phrase: str) -> None:
+    """Each of these rules carries the comment that explains its status."""
     value = _rules()[rule]
     assert isinstance(value, dict)
-    assert "stale_devices.py" in value["comment"] or "Never automatic" in value["comment"]
+    assert phrase in value["comment"]
