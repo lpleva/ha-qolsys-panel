@@ -41,7 +41,7 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.errors import (
 from homeassistant.config_entries import SOURCE_DHCP, SOURCE_USER
 from homeassistant.const import CONF_HOST, CONF_MAC, CONF_MODEL
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import AbortFlow, FlowResultType
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 # PKI folders on disk are the random MAC without separators
@@ -595,6 +595,65 @@ async def test_pki_autodiscovery_error_aborts(
     mock_qolsys_controller.stop.assert_awaited_once()
 
 
+@pytest.mark.parametrize(
+    "side_effect",
+    [
+        RuntimeError("boom"),
+        BaseExceptionGroup("pairing", [asyncio.CancelledError()]),
+    ],
+)
+async def test_pki_autodiscovery_unexpected_task_error_aborts(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    mock_setup_entry: AsyncMock,
+    *,
+    side_effect: BaseException,
+):
+    """An error escaping the pairing task stops the controller and aborts (upstream 7ddb3c7).
+
+    run_forever errors are mapped inside _try_connect; this covers anything
+    raised outside that try, including a BaseExceptionGroup from the
+    controller's task groups. Our flow also puts the log levels back on this
+    exit (audit M1), so that is checked too.
+    """
+    library_logger = logging.getLogger(
+        "custom_components.qolsys_panel.vendor.qolsys_controller"
+    )
+    library_logger.setLevel(logging.WARNING)
+    mock_qolsys_controller.settings.check_plugin_ip.side_effect = side_effect
+
+    result = await _run_pairing_flow(hass)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "pairing_failed"
+    assert result["description_placeholders"] == {
+        "reason": "unexpected error during pairing (see logs)"
+    }
+    mock_qolsys_controller.stop.assert_awaited_once()
+    assert len(mock_setup_entry.mock_calls) == 0
+    assert library_logger.level == logging.WARNING
+
+
+async def test_pki_autodiscovery_task_abort_flow_propagates(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    mock_setup_entry: AsyncMock,
+):
+    """An AbortFlow from the pairing task keeps its reason (upstream 7ddb3c7).
+
+    It must not be turned into pairing_failed by the catch-all next to it.
+    """
+    mock_qolsys_controller.settings.check_plugin_ip.side_effect = AbortFlow(
+        "already_configured"
+    )
+
+    result = await _run_pairing_flow(hass)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert len(mock_setup_entry.mock_calls) == 0
+
+
 async def test_pki_autodiscovery_duplicate_aborts(
     hass: HomeAssistant,
     mock_qolsys_controller: MagicMock,
@@ -705,6 +764,7 @@ async def test_existing_pki_validation_errors(
         SSLError(),
         QolsysMqttError("boom"),
         QolsysConfigError("boom"),
+        RuntimeError("boom"),
     ],
 )
 async def test_existing_pki_connection_errors_abort(
@@ -725,6 +785,34 @@ async def test_existing_pki_connection_errors_abort(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "pairing_failed"
     mock_qolsys_controller.stop.assert_awaited()
+
+
+async def test_stop_controller_propagates_cancellation(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    tmp_config_dir: Path,
+):
+    """Cancelling the flow while the controller stops propagates (upstream 7ddb3c7).
+
+    _async_stop_controller logs and swallows teardown errors, but a
+    CancelledError from the flow itself being cancelled (Home Assistant
+    shutting down, say) must reach the caller.
+    """
+    stopping = asyncio.Event()
+
+    async def _stop() -> None:
+        stopping.set()
+        await asyncio.Event().wait()  # block until the flow is cancelled
+
+    mock_qolsys_controller.stop.side_effect = _stop
+
+    # No PKI on disk, so the existing_pki step stops the controller and aborts.
+    task = hass.async_create_task(_start_menu_step(hass, "existing_pki"))
+    await stopping.wait()
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
 
 
 async def test_existing_pki_duplicate_aborts(
