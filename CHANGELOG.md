@@ -1,7 +1,8 @@
 ## Unreleased
 
-- **A door, window or smoke zone the panel has lost or that has its cover off
-  now reads unavailable instead of closed.** Our version of upstream cb11be0
+- **A zone the panel has lost or that has its cover off now reads
+  unavailable instead of closed, for every zone type (door, window, smoke,
+  motion, glass break, water, CO, keypad), as upstream does.** Our version of upstream cb11be0
   (#183/#184), approved by Lukas 2026-11-21. The panel reports trouble
   (Failure, Unreachable, Not Networked, Trouble, Synchronizing, disconnected)
   and Tampered in the same status field that otherwise carries Open/Closed,
@@ -24,15 +25,22 @@
   library's `TroubleZoneStatus`), the keypad's on/off exception (a keypad in
   trouble or tampered is unavailable like any zone; at rest it still reads
   off), every entity id and name, a whole-panel disconnect, and the
-  manifest's requirements. **What this changes in the house:** a sensor that
-  drops off the panel or is opened up shows unavailable on the dashboard
-  instead of closed; Leo checked that no automation depends on a lost zone
-  reading closed (triggers on `to: 'on'` / `to: 'off'` and time checks of
-  `on` behave the same with unavailable). Tests: `test_vendor_zone_availability.py`
+  manifest's requirements. **Motion zones, inherited from upstream 1.13.3b3:**
+  with the Motion sensor delay option on (off by default), the library
+  overwrites any status on a motion zone with Idle once the delay runs out
+  (`zone.py::delay_zone`, 310 s by default), so a lost or tampered motion zone
+  reads unavailable for about 5 minutes and then reads available and off.
+  **What this changes in the house:** a sensor that drops off the panel or is
+  opened up shows unavailable on the dashboard instead of closed. When the
+  zone reports again, its entity goes from unavailable to off or on, and that
+  change fires any `to: 'off'` or `to: 'on'` trigger written without a
+  `from:`. Leo checked the house: no automation locks or unlocks on these;
+  the worst case is a light or a motion push. Tests: `test_vendor_zone_availability.py`
   (every `ZoneStatus` against all four helpers on a real zone, 32 cases) and
   `test_zone_availability.py` (213 cases on real vendored zones: each rule,
   tamper then recovery, lost then recovery, a keypad, a panel disconnect, the
-  unique ids).
+  unique ids, the motion-delay overwrite), and an availability case for each
+  reading sensor in `test_sensor.py`.
 
 - **Four upstream housekeeping commits, in our own version; nothing changes in
   the house.** Sync of 2026-11-21. **(1)** Upstream f4332f1 (#189): the

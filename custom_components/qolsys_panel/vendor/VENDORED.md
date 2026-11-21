@@ -495,6 +495,11 @@ The first pairing against a real IQ Panel failed the post-pairing TLS connection
   and keeps the Force Arm bypass. `TroubleZoneStatus` and the arm guard are
   untouched. Tests in `test/test_vendor_zone_availability.py` (every
   `ZoneStatus`) and `test/test_zone_availability.py` (the entities).
+  Inherited, unchanged: with the Motion sensor delay option on (off by
+  default), `delay_zone` overwrites a motion zone's status with Idle after
+  `motion_sensor_delay_sec` (310 s by default) whatever the status was, so a
+  lost or tampered motion zone is unavailable for about 5 minutes and then
+  reads available and Idle. Upstream 1.13.3b3 behaves the same.
 - **Fork fix, 2026-10-31 (no upstream counterpart): `SafetyZoneSensorGroup`
   gains `smoke_heat`, `co` and `WaterSensor`.** The L1 guard decides by that
   list, and upstream's six names did not include the groups the panel files
