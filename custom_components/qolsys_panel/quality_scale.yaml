@@ -24,7 +24,12 @@ rules:
       Integration does not provide triggers.
   entity-event-setup: done
   entity-unique-id: done
-  has-entity-name: done
+  has-entity-name:
+    status: done
+    comment: |
+      Not true on this tree until upstream 820cf52 is decided (Lukas's call):
+      scene.py and weather.py set _attr_has_entity_name = False. The status
+      is left at done on purpose; change it only with that decision.
   runtime-data: done
   test-before-configure: done
   test-before-setup: done
@@ -98,4 +103,10 @@ rules:
     status: exempt
     comment: |
       Integration does not make any HTTP requests.
-  strict-typing: done
+  strict-typing:
+    status: done
+    comment: |
+      mypy.ini sets strict = True for the integration and its tests. The
+      vendored qolsys_controller library itself is not type-checked
+      (mypy.ini ignores errors in vendor.*); the integration's call sites
+      into it are.
