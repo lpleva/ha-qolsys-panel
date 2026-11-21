@@ -107,6 +107,15 @@
     "arm_blocked_open_zones": {
       "message": "Could not {action}, these zones are not ready: {zones}. Close or fix them, then try to {action} again."
     },
+    "operation_timeout": {
+      "message": "Could not {action}: the Qolsys Panel did not respond in time."
+    },
+    "arm_failed": {
+      "message": "Could not {action}: arming the partition failed. See the log for details."
+    },
+    "disarm_failed": {
+      "message": "Could not disarm: disarming the partition failed. See the log for details."
+    },
     "integration_not_found": {
       "message": "Integration \"{target}\" not found in registry."
     },

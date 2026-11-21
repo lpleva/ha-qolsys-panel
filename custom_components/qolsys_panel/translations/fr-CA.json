@@ -93,6 +93,15 @@
     "arm_blocked_open_zones": {
       "message": "Impossible de {action}, ces zones ne sont pas prêtes : {zones}. Fermez-les ou corrigez-les, puis réessayez de {action}."
     },
+    "operation_timeout": {
+      "message": "Impossible de {action} : le panneau Qolsys n'a pas répondu à temps."
+    },
+    "arm_failed": {
+      "message": "Impossible de {action} : l'armement de la partition a échoué. Consultez le journal pour plus de détails."
+    },
+    "disarm_failed": {
+      "message": "Impossible de désarmer : le désarmement de la partition a échoué. Consultez le journal pour plus de détails."
+    },
     "integration_not_found": {
       "message": "Intégration « {target} » introuvable dans le registre."
     },

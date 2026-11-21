@@ -186,10 +186,16 @@ class PartitionAlarmControlPanel(QolsysPartitionEntity, AlarmControlPanelEntity)
                 translation_placeholders={"action": ACTION_WORDS["DISARM"]},
             ) from err
         except QolsysOperationTimeoutError as err:
-            raise HomeAssistantError("DISARM: Operation timed out") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="operation_timeout",
+                translation_placeholders={"action": ACTION_WORDS["DISARM"]},
+            ) from err
         except Exception as err:
             _LOGGER.error("Failed to disarm partition%s: %s", self._partition_id, err)
-            raise HomeAssistantError("DISARM: Failed to disarm partition") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="disarm_failed"
+            ) from err
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send ARM-STAY command."""
@@ -219,13 +225,19 @@ class PartitionAlarmControlPanel(QolsysPartitionEntity, AlarmControlPanelEntity)
                 translation_placeholders={"action": ACTION_WORDS[arm_mode.name]},
             ) from err
         except QolsysOperationTimeoutError as err:
-            raise HomeAssistantError(f"{arm_mode.name}: Operation timed out") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="operation_timeout",
+                translation_placeholders={"action": ACTION_WORDS[arm_mode.name]},
+            ) from err
         except QolsysZoneBypassError as err:
             raise self._arm_blocked_error(arm_mode, err.zones) from err
         except Exception as err:
             _LOGGER.error("Failed to arm partition%s: %s", self._partition_id, err)
             raise HomeAssistantError(
-                f"{arm_mode.name}: Failed to arm partition"
+                translation_domain=DOMAIN,
+                translation_key="arm_failed",
+                translation_placeholders={"action": ACTION_WORDS[arm_mode.name]},
             ) from err
 
     def _arm_blocked_error(
