@@ -1,5 +1,35 @@
 ## Unreleased
 
+- **Four upstream housekeeping commits, in our own version; nothing changes in
+  the house.** Sync of 2026-11-21. **(1)** Upstream f4332f1 (#189): the
+  integration now ships its icon and logo in `brand/` (eight PNGs,
+  byte-identical to upstream's, which match the brands repository), where
+  Home Assistant 2026.3+ looks before the brands CDN whose custom-integration
+  folder is now legacy. Static files only. **(2)** Upstream 7ddb3c7 (#190):
+  tests for the config flow's three untested error paths (an error escaping
+  the pairing task, including a `BaseExceptionGroup`; an `AbortFlow` from
+  that task keeping its own reason; a cancellation while the controller
+  stops), plus an unexpected `run_forever` error on the existing-PKI path.
+  Our flow has the same paths; the one adaptation is that the first test also
+  checks the log levels are put back (audit M1). `config_flow.py` coverage
+  goes from 95% to 100%, and breaking each guarded line fails its test.
+  **(3)** Upstream 89ed4dd (#193), in part: the three arm/disarm errors that
+  were still plain English now raise translated errors with the same meaning
+  (`operation_timeout`, "Could not arm away: the Qolsys Panel did not respond
+  in time."; `arm_failed`; `disarm_failed`) in `strings.json`, `en.json`
+  and `fr-CA.json`. The commands sent to the panel are unchanged. **Not
+  taken:** upstream's invalid-code and open-zone messages (ours stay, and its
+  bypass message tells you to turn on Force Arm, which this fork declined),
+  and its `ConfigEntryError` for a missing unique_id, which would undo review
+  N5. **(4)** Upstream b687704 (#191): `quality_scale.yaml` lists all 54
+  rules (adds docs-conditions and docs-triggers as exempt, dynamic-devices as
+  todo, strict-typing as done) and corrects action-setup to done and
+  entity-translations to todo, merged with our own repair-issues and
+  stale-devices entries. has-entity-name stays done while 820cf52 waits on
+  Lukas. Tests: `test_brand.py` (10), `test_quality_scale.py` (15), 5 new
+  config-flow cases, and 20 new cases in `test_alarm_control_panel.py`,
+  including ones that pin our four refusal messages word for word.
+
 - **A zone deleted on the panel can now be deleted from its device page, and
   a Repair says so after seven days; nothing is ever deleted automatically.**
   Our own version of upstream dc5130c (#175, "remove devices no longer present
