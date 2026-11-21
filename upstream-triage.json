@@ -1554,11 +1554,15 @@
       "date": "2026-11-16",
       "subject": "fix: use has_entity_name for scene and weather entities (#192)",
       "bucket": "ask",
-      "status": "waiting_on_lukas",
+      "status": "rejected",
       "reason": "Turns on has_entity_name for the scene and weather entities, so their friendly names gain the panel device name in front (\"Panel Weather\", \"Panel Good Night Scene\"); entity ids stay, but the names on dashboards change.",
       "implemented_in": [],
       "triaged": "2026-11-21",
-      "source": "triage"
+      "source": "triage",
+      "decided": {
+        "date": "2026-11-21",
+        "note": "Lukas: no"
+      }
     },
     {
       "sha": "89ed4ddffba30b8156ac5ccd605aca1d17c639f4",
