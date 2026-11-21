@@ -55,6 +55,11 @@ def controller() -> MagicMock:
     # is_on()/is_trouble() and not a MagicMock's always-truthy return.
     zone.is_on.side_effect = lambda: QolsysZone.is_on(zone)
     zone.is_trouble.side_effect = lambda: QolsysZone.is_trouble(zone)
+    # Same for the tamper and availability helpers (upstream cb11be0).
+    zone.is_tampered.side_effect = lambda: QolsysZone.is_tampered(zone)
+    zone.is_available_reading.side_effect = lambda: QolsysZone.is_available_reading(zone)
+    zone.is_available_status.side_effect = lambda: QolsysZone.is_available_status(zone)
+    zone.is_available_tamper.side_effect = lambda: QolsysZone.is_available_tamper(zone)
     zone.is_battery_enabled.return_value = True
     zone.is_powerg_battery_level_enabled.return_value = False
     zone.is_ac_enabled.return_value = True

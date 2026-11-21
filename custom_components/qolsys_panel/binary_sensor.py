@@ -414,9 +414,19 @@ class ZoneSensor_Tamper(QolsysZoneEntity, BinarySensorEntity):
         self._attr_translation_key = "zone_tamper"
 
     @property
+    def available(self) -> bool:
+        """Unavailable only while the tamper state is unknown (upstream cb11be0).
+
+        Tamper and trouble share the zone's status field: a tampered zone
+        shows on here, a lost one or an Unknown word hides whether the cover
+        is off.
+        """
+        return super().available and self._zone.is_available_tamper()
+
+    @property
     def is_on(self) -> bool:
         """Return if this zone tamper is on."""
-        return self._zone.sensorstatus == ZoneStatus.TAMPERED
+        return self._zone.is_tampered()
 
 
 class ZoneSensor_BatteryStatus(QolsysZoneEntity, BinarySensorEntity):
@@ -432,6 +442,11 @@ class ZoneSensor_BatteryStatus(QolsysZoneEntity, BinarySensorEntity):
         self._attr_device_class = BinarySensorDeviceClass.BATTERY
         self._attr_unique_id = f"{self._zone_unique_id}_battery_status"
         self._attr_translation_key = "zone_battery_status"
+
+    @property
+    def available(self) -> bool:
+        """Unavailable while the zone is in trouble: its readings are stale (upstream cb11be0)."""
+        return super().available and self._zone.is_available_reading()
 
     @property
     def is_on(self) -> bool:
@@ -454,6 +469,11 @@ class ZoneSensor_ACStatus(QolsysZoneEntity, BinarySensorEntity):
         self._attr_translation_key = "zone_ac_status"
 
     @property
+    def available(self) -> bool:
+        """Unavailable while the zone is in trouble: its readings are stale (upstream cb11be0)."""
+        return super().available and self._zone.is_available_reading()
+
+    @property
     def is_on(self) -> bool:
         """Return True while this zone has AC power (device_class PLUG: on == plugged in).
 
@@ -474,6 +494,18 @@ class ZonesSensor(QolsysZoneEntity, BinarySensorEntity):
         """Set up a binary sensor entity for a zone in a Qolsys Panel."""
         super().__init__(QolsysPanel, zone_id, unique_id)
         self._attr_unique_id = self._zone_unique_id
+
+    @property
+    def available(self) -> bool:
+        """Unavailable while the zone's open/closed state is unknown (upstream cb11be0).
+
+        The panel reports trouble (Failure, Unreachable, disconnected, ...) and
+        Tampered in the same field that otherwise carries Open/Closed, so such
+        a zone used to read closed. The Status and Tamper entities next to it
+        stay available and say why. Applies to a keypad too; its on/off
+        exception below is unchanged.
+        """
+        return super().available and self._zone.is_available_status()
 
     @property
     def is_on(self) -> bool:
