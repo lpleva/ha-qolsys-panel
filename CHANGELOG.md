@@ -1,5 +1,39 @@
 ## Unreleased
 
+- **A door, window or smoke zone the panel has lost or that has its cover off
+  now reads unavailable instead of closed.** Our version of upstream cb11be0
+  (#183/#184), approved by Lukas 2026-11-21. The panel reports trouble
+  (Failure, Unreachable, Not Networked, Trouble, Synchronizing, disconnected)
+  and Tampered in the same status field that otherwise carries Open/Closed,
+  so a zone in one of them used to read closed in Home Assistant while nobody
+  knew whether the door was shut. Four helpers from upstream library 1.13.3b3
+  are written into our vendored `zone.py` (`is_tampered`,
+  `is_available_reading`, `is_available_status`, `is_available_tamper`;
+  vendor/VENDORED.md), without taking the library, whose `arm()` still never
+  refuses an open safety zone (audit L1). **(Z1)** The zone's main entity is
+  unavailable while the zone is in trouble, tampered, or reports a status
+  word the library does not know (`Unknown`, as upstream does). **(Z2)**
+  While the zone is in trouble, its battery status, AC status, battery level,
+  battery voltage, latest and average dBm, PowerG temperature and PowerG
+  light read unavailable instead of their last value; a tamper leaves them
+  available. **(Z3)** The Status entity stays available and reads
+  Disconnected; Tamper stays available and reads on while the cover is off,
+  and is unavailable only while its own state is unknown (lost or Unknown).
+  **(Z4)** When the zone reports Open or Closed again, every entity comes back
+  by itself. **(Z5)** Unchanged: arming and disarming (the arm guard reads the
+  library's `TroubleZoneStatus`), the keypad's on/off exception (a keypad in
+  trouble or tampered is unavailable like any zone; at rest it still reads
+  off), every entity id and name, a whole-panel disconnect, and the
+  manifest's requirements. **What this changes in the house:** a sensor that
+  drops off the panel or is opened up shows unavailable on the dashboard
+  instead of closed; Leo checked that no automation depends on a lost zone
+  reading closed (triggers on `to: 'on'` / `to: 'off'` and time checks of
+  `on` behave the same with unavailable). Tests: `test_vendor_zone_availability.py`
+  (every `ZoneStatus` against all four helpers on a real zone, 32 cases) and
+  `test_zone_availability.py` (213 cases on real vendored zones: each rule,
+  tamper then recovery, lost then recovery, a keypad, a panel disconnect, the
+  unique ids).
+
 - **Four upstream housekeeping commits, in our own version; nothing changes in
   the house.** Sync of 2026-11-21. **(1)** Upstream f4332f1 (#189): the
   integration now ships its icon and logo in `brand/` (eight PNGs,
