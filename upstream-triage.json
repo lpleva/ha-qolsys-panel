@@ -784,10 +784,8 @@
       ],
       "triaged": "2026-10-10",
       "source": "backfill",
-      "decided": {
-        "date": "2026-10-10",
-        "note": "Lukas asked for upstream 1.9.0 to be taken the hand-applied way"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:a7b79fa",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=d12bc928-543b-4f9c-ac26-2395a5dbf580"
     },
     {
       "sha": "353a9d0dbe51ad93efdadc625e26551a126729d5",
@@ -824,10 +822,8 @@
       ],
       "triaged": "2026-10-10",
       "source": "backfill",
-      "decided": {
-        "date": "2026-10-10",
-        "note": "Lukas asked for upstream 1.9.0 to be taken the hand-applied way"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:1ebb18e",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=c3198991-617a-46fb-ba59-7398cba65f5b"
     },
     {
       "sha": "ccec8006042d169519b7f7f867a369a6d590529d",
@@ -842,10 +838,8 @@
       ],
       "triaged": "2026-10-10",
       "source": "backfill",
-      "decided": {
-        "date": "2026-10-10",
-        "note": "Lukas asked for upstream 1.9.0 to be taken the hand-applied way"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:ccec800",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=55766e1b-ea48-43dd-a893-637445643480"
     },
     {
       "sha": "22b944249db726be0dbf55dc94c318037f8a5d35",
@@ -973,15 +967,13 @@
       "date": "2026-10-19",
       "subject": "feat: add force arm switch (#157)",
       "bucket": "ask",
-      "status": "rejected",
+      "status": "waiting_on_lukas",
       "reason": "Force Arm: a new one-shot partition switch that makes the next arm bypass open zones even with the panel's Auto Bypass off, and the bypass error now tells you to turn it on; it touches arming and needs library 1.12.3's command_force_arm, which our vendored 1.11.0 lacks. Split: the Z-Wave thermostat set_temperature fix is a real correctness fix but for hardware not on this panel, and the lock.py punctuation, manifest pin 1.12.3b2, version, changelog and CI hunks are declined; note the new error text would also tell people to force-arm past an open smoke/CO/water zone, which our L1 guard raises on.",
       "implemented_in": [],
       "triaged": "2026-10-24",
       "source": "triage",
-      "decided": {
-        "date": "2026-10-27",
-        "note": "Lukas: no to Force Arm (\"aligned\" with Leo's no: Auto Bypass already on; safety zones cannot be forced). The clearer refusal text shipped separately in 1.9.1."
-      }
+      "asked": "leo:fork:ha-qolsys-panel:a6afab0",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=36d47c3f-2f97-4958-a68c-ba23239ab6d5"
     },
     {
       "sha": "0b6f2f4fdfecb6210ad1a432811715161d05cecc",
@@ -1185,10 +1177,8 @@
       ],
       "triaged": "2026-10-31",
       "source": "triage",
-      "decided": {
-        "date": "2026-10-31",
-        "note": "Lukas: yes, with the doors bar turning amber on a trouble flag"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:687ab08",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=82d52c5d-33fd-4016-aa76-f83dcb173b24"
     },
     {
       "sha": "c32dbe4a399c9920a6b65dce1aff6d320f8bb982",
@@ -1255,10 +1245,8 @@
       ],
       "triaged": "2026-11-07",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-07",
-        "note": "Lukas: yes to our own version: keep the manual Delete button, no automatic deletion; instead a Repair after a zone is missing 7 days, ignoring partial/empty panel lists. 'Yeah have a Fable agent build it'"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:dc5130c",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=15b5e45c-5788-4b17-b38a-43baef939559"
     },
     {
       "sha": "2cbeddaee2e5bdf1e855efce8d21c6b9562317b3",
@@ -1292,10 +1280,8 @@
       "implemented_in": [],
       "triaged": "2026-11-07",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-07",
-        "note": "Lukas: the six emergency statuses (Fire, Police, Auxiliary, Silent Police and Silent Auxiliary Emergency, High Temp Alert) are taken in our own version, in the vendored enum_qolsys.py OnZoneStatus: commit b8fadd6138478c67da5fb6870be839ca9f3b3d04 (library set) and 8c9f66628fee29088a74947ca8f7672a8aea19e8 (the integration's keypad list), see VENDORED.md, the 1.12.7 entry. The Active off / Inactive on flip is rejected. The pin bump itself stays declined: the library is vendored."
-      }
+      "asked": "leo:fork:ha-qolsys-panel:210f79f",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=65daeb22-296c-419f-bdb6-e472bfbe26e2"
     },
     {
       "sha": "5affb93a2d4a0b2cea2c5265c5577c3dc985d67f",
@@ -1357,30 +1343,26 @@
       "date": "2026-11-08",
       "subject": "feat: add advanced MQTT settings to options flow (#178)",
       "bucket": "ask",
-      "status": "rejected",
+      "status": "waiting_on_lukas",
       "reason": "New Configure options (collapsed Advanced section) for MQTT QoS, keepalive and command timeout on the connection that arms and disarms the alarm; defaults stay the library's 0/30 s/30 s. It also needs library 1.13.1: our vendored settings.py has no setter for mqtt_qos or mqtt_command_timeout, so taken alone it would fail setup; its manifest pin bump is declined as for the other bumps.",
       "implemented_in": [],
       "triaged": "2026-11-14",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-14",
-        "note": "Lukas: I guess skip for now (revisit if an arm/disarm command ever fails)"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:c5c3d9b",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=79e039bc-c770-4d19-873f-f838954a0943"
     },
     {
       "sha": "28f247ace1af7f470e06e725f93a9f5e6195ff06",
       "date": "2026-11-08",
       "subject": "fix: use a select for MQTT QoS option (#179)",
       "bucket": "ask",
-      "status": "rejected",
+      "status": "waiting_on_lukas",
       "reason": "Turns the MQTT QoS option from c5c3d9b into a dropdown and stores it as an int. It only exists on top of c5c3d9b, so it goes with that decision.",
       "implemented_in": [],
       "triaged": "2026-11-14",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-14",
-        "note": "Lukas: I guess skip for now (revisit if an arm/disarm command ever fails)"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:28f247a",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=f4f491c4-88e2-4c0d-a817-1f89596e60d4"
     },
     {
       "sha": "7d8547c66a3a7ca8215ba9c36d3503d9e49beda3",
@@ -1453,15 +1435,13 @@
       "date": "2026-11-15",
       "subject": "fix: remove device prefixes from panel scene names (#185)",
       "bucket": "ask",
-      "status": "rejected",
+      "status": "waiting_on_lukas",
       "reason": "Renames the panel scene entities from \"Qolsys Panel - <scene>\" to \"<scene> Scene\"; entity ids stay but the friendly names change, so it is a naming change.",
       "implemented_in": [],
       "triaged": "2026-11-21",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-21",
-        "note": "Lukas: no"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:3a83adf",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=14704f15-a288-4df1-85c5-467d59e3ed0f"
     },
     {
       "sha": "b35825d50286c6f9ae6aeb5a547df7c3cef06f68",
@@ -1499,10 +1479,8 @@
       ],
       "triaged": "2026-11-21",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-21",
-        "note": "Lukas: yes"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:cb11be0",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=086422fe-8c3b-4b2a-85ab-769d24e08833"
     },
     {
       "sha": "34f05750bb4fd929ded697eb0d5471418870c0a2",
@@ -1558,15 +1536,13 @@
       "date": "2026-11-16",
       "subject": "fix: use has_entity_name for scene and weather entities (#192)",
       "bucket": "ask",
-      "status": "rejected",
+      "status": "waiting_on_lukas",
       "reason": "Turns on has_entity_name for the scene and weather entities, so their friendly names gain the panel device name in front (\"Panel Weather\", \"Panel Good Night Scene\"); entity ids stay, but the names on dashboards change.",
       "implemented_in": [],
       "triaged": "2026-11-21",
       "source": "triage",
-      "decided": {
-        "date": "2026-11-21",
-        "note": "Lukas: no"
-      }
+      "asked": "leo:fork:ha-qolsys-panel:820cf52",
+      "task": "https://pleva-family-task-manager.vercel.app/app?task=c44fd590-ec57-4c49-b493-6463f90ffe2e"
     },
     {
       "sha": "89ed4ddffba30b8156ac5ccd605aca1d17c639f4",
