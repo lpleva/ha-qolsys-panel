@@ -1519,9 +1519,12 @@
       "date": "2026-11-16",
       "subject": "chore: ship brand images with the integration (#189)",
       "bucket": "implement",
-      "status": "pending",
+      "status": "implemented",
       "reason": "Ships the integration's icon and logo PNGs in a brand/ folder, which Home Assistant 2026.3+ reads ahead of the brands CDN whose custom-integration folder is now legacy; static images only, no code or network change.",
-      "implemented_in": [],
+      "implemented_in": [
+        "42af0c9d3134678b67b678035c7a53affa47c9d4",
+        "a274c0ee6080753d01007fc20c4ebb2916e6d1ed"
+      ],
       "triaged": "2026-11-21",
       "source": "triage"
     },
