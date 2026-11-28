@@ -792,37 +792,6 @@ async def test_existing_pki_connection_errors_abort(
     mock_qolsys_controller.stop.assert_not_awaited()
 
 
-async def test_stop_controller_propagates_cancellation(
-    hass: HomeAssistant,
-    mock_qolsys_controller: MagicMock,
-    tmp_config_dir: Path,
-):
-    """Cancelling the flow while the controller stops propagates (upstream 7ddb3c7).
-
-    _async_stop_controller logs and swallows teardown errors, but a
-    CancelledError from the flow itself being cancelled (Home Assistant
-    shutting down, say) must reach the caller. Since upstream 79e61727e the
-    teardown waits on the run task rather than stop(), so the run task here
-    refuses its first cancel to keep the teardown waiting.
-    """
-    run = _StubbornRun()
-    mock_qolsys_controller.run_forever.side_effect = run.run
-    flow = _flow(hass, tmp_config_dir)
-    connect = hass.async_create_task(_connect(flow))
-    await run.started.wait()
-
-    with patch(f"{_FLOW}._STOP_TIMEOUT_SECONDS", 30):
-        task = hass.async_create_task(flow._async_stop_controller())
-        await run.refused.wait()
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-
-    run.release.set()
-    await asyncio.wait({connect})
-    mock_qolsys_controller.stop.assert_not_awaited()
-
-
 # --- Item 4 of upstream 79e61727e: the flow's teardown never awaits stop() ---
 
 _FLOW = "custom_components.qolsys_panel.config_flow"
@@ -866,6 +835,37 @@ async def _connect(flow) -> dict[str, str]:
         resume_pairing=False,
         start_pairing=False,
     )
+
+
+async def test_stop_controller_propagates_cancellation(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    tmp_config_dir: Path,
+):
+    """Cancelling the flow while the controller stops propagates (upstream 7ddb3c7).
+
+    _async_stop_controller logs and swallows teardown errors, but a
+    CancelledError from the flow itself being cancelled (Home Assistant
+    shutting down, say) must reach the caller. Since upstream 79e61727e the
+    teardown waits on the run task rather than stop(), so the run task here
+    refuses its first cancel to keep the teardown waiting.
+    """
+    run = _StubbornRun()
+    mock_qolsys_controller.run_forever.side_effect = run.run
+    flow = _flow(hass, tmp_config_dir)
+    connect = hass.async_create_task(_connect(flow))
+    await run.started.wait()
+
+    with patch(f"{_FLOW}._STOP_TIMEOUT_SECONDS", 30):
+        task = hass.async_create_task(flow._async_stop_controller())
+        await run.refused.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    run.release.set()
+    await asyncio.wait({connect})
+    mock_qolsys_controller.stop.assert_not_awaited()
 
 
 async def test_no_pki_abort_does_not_wait_on_stop(

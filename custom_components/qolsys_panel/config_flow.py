@@ -546,8 +546,10 @@ class QolsysPanelConfigFlow(ConfigFlow, domain=DOMAIN):
         _STOP_TIMEOUT_SECONDS, rather than awaiting QolsysPanel.stop(): stop()
         cancels the supervisor, a child of the TaskGroup inside run_forever,
         and a TaskGroup ignores a cancelled child, so stop() can wait forever
-        (our version of upstream 79e61727e). A cancellation of the flow itself
-        still propagates.
+        (our version of upstream 79e61727e). If the run task has not ended
+        when the bound runs out, it is left running in the background, not
+        stopped; a warning is logged and the flow goes on. A cancellation of
+        the flow itself still propagates.
         """
         run_task, self._run_task = self._run_task, None
         if run_task is None or run_task.done():
