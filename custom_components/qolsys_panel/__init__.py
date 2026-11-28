@@ -232,7 +232,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
             {controller_task}, timeout=_TEARDOWN_TIMEOUT_SECONDS
         )
         if still_running:
-            # Left running in the background; HA cancels it again at shutdown.
+            # Left running; Home Assistant cancels it again as soon as the failed setup returns.
             _LOGGER.warning(
                 "Qolsys controller did not stop within %s seconds of being"
                 " cancelled after a failed setup",

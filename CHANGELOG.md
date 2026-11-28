@@ -10,8 +10,9 @@
   (`entry.async_create_background_task`), which Home Assistant cancels when
   the entry unloads; `async_unload_entry` only unloads the platforms; a
   failed or timed-out setup cancels the controller task and waits for it, at
-  most 10 seconds, instead of calling `stop()` (SSL errors still ask for re-authentication,
-  MQTT errors and a timeout still retry with the same messages); and the
+  most 10 seconds, instead of calling `stop()` (SSL errors still ask for
+  re-authentication, MQTT errors and a timeout still retry with the same
+  messages); and the
   config flow's teardown (`_async_stop_controller`) cancels its own run task
   and waits at most 10 seconds instead of awaiting `stop()`. Not taken:
   upstream's automatic reload when devices are added on the panel (waiting on
