@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from ssl import SSLError
 from typing import cast
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from conftest import (
     PANEL_HOST,
@@ -19,7 +19,10 @@ from conftest import (
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.qolsys_panel.config_flow import _CONFIG_FLOW_DEBUG_LOGGERS
+from custom_components.qolsys_panel.config_flow import (
+    _CONFIG_FLOW_DEBUG_LOGGERS,
+    QolsysPanelConfigFlow,
+)
 from custom_components.qolsys_panel.const import (
     CONF_IMEI,
     CONF_RANDOM_MAC,
@@ -548,6 +551,8 @@ async def test_pki_autodiscovery_empty_mac_aborts_even_if_stop_raises(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "pairing_failed"
     assert len(mock_setup_entry.mock_calls) == 0
+    # Upstream 79e61727e: teardown no longer goes through stop() at all.
+    mock_qolsys_controller.stop.assert_not_awaited()
 
 
 async def test_pki_autodiscovery_timeout_aborts(
@@ -592,7 +597,7 @@ async def test_pki_autodiscovery_error_aborts(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "pairing_failed"
     assert result["description_placeholders"] == {"reason": "boom"}
-    mock_qolsys_controller.stop.assert_awaited_once()
+    mock_qolsys_controller.stop.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -629,7 +634,7 @@ async def test_pki_autodiscovery_unexpected_task_error_aborts(
     assert result["description_placeholders"] == {
         "reason": "unexpected error during pairing (see logs)"
     }
-    mock_qolsys_controller.stop.assert_awaited_once()
+    mock_qolsys_controller.stop.assert_not_awaited()
     assert len(mock_setup_entry.mock_calls) == 0
     assert library_logger.level == logging.WARNING
 
@@ -703,7 +708,7 @@ async def test_existing_pki_no_pki_found(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == NO_PKI_ERROR
-    mock_qolsys_controller.stop.assert_awaited_once()
+    mock_qolsys_controller.stop.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -784,7 +789,7 @@ async def test_existing_pki_connection_errors_abort(
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "pairing_failed"
-    mock_qolsys_controller.stop.assert_awaited()
+    mock_qolsys_controller.stop.assert_not_awaited()
 
 
 async def test_stop_controller_propagates_cancellation(
@@ -796,23 +801,141 @@ async def test_stop_controller_propagates_cancellation(
 
     _async_stop_controller logs and swallows teardown errors, but a
     CancelledError from the flow itself being cancelled (Home Assistant
-    shutting down, say) must reach the caller.
+    shutting down, say) must reach the caller. Since upstream 79e61727e the
+    teardown waits on the run task rather than stop(), so the run task here
+    refuses its first cancel to keep the teardown waiting.
     """
-    stopping = asyncio.Event()
+    run = _StubbornRun()
+    mock_qolsys_controller.run_forever.side_effect = run.run
+    flow = _flow(hass, tmp_config_dir)
+    connect = hass.async_create_task(_connect(flow))
+    await run.started.wait()
 
-    async def _stop() -> None:
-        stopping.set()
-        await asyncio.Event().wait()  # block until the flow is cancelled
+    with patch(f"{_FLOW}._STOP_TIMEOUT_SECONDS", 30):
+        task = hass.async_create_task(flow._async_stop_controller())
+        await run.refused.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
-    mock_qolsys_controller.stop.side_effect = _stop
+    run.release.set()
+    await asyncio.wait({connect})
+    mock_qolsys_controller.stop.assert_not_awaited()
 
-    # No PKI on disk, so the existing_pki step stops the controller and aborts.
-    task = hass.async_create_task(_start_menu_step(hass, "existing_pki"))
-    await stopping.wait()
-    task.cancel()
 
-    with pytest.raises(asyncio.CancelledError):
-        await task
+# --- Item 4 of upstream 79e61727e: the flow's teardown never awaits stop() ---
+
+_FLOW = "custom_components.qolsys_panel.config_flow"
+
+
+class _StubbornRun:
+    """A run_forever stand-in: blocks, counts cancels, may refuse the first one."""
+
+    def __init__(self, refuse_first_cancel: bool = True) -> None:
+        self.refuse_first_cancel = refuse_first_cancel
+        self.started = asyncio.Event()
+        self.refused = asyncio.Event()
+        self.release = asyncio.Event()
+        self.cancelled = 0
+
+    async def run(self, *_args, **_kwargs) -> None:
+        self.started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled += 1
+            if not self.refuse_first_cancel:
+                raise
+            self.refused.set()
+        await self.release.wait()
+
+
+def _flow(hass: HomeAssistant, config_dir: Path):
+    """A config flow wired to hass, as the flow manager would hand it over."""
+    flow = QolsysPanelConfigFlow()
+    flow.hass = hass
+    flow._config_directory = config_dir
+    return flow
+
+
+async def _connect(flow) -> dict[str, str]:
+    return await flow._try_connect(
+        step="existing_pki",
+        host=PANEL_HOST,
+        random_mac=RANDOM_MAC,
+        resume_pairing=False,
+        start_pairing=False,
+    )
+
+
+async def test_no_pki_abort_does_not_wait_on_stop(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    tmp_config_dir: Path,
+):
+    """A stop() that never returns cannot hang the flow's teardown (upstream 79e61727e)."""
+
+    async def _stop_never_returns() -> None:
+        await asyncio.Event().wait()
+
+    mock_qolsys_controller.stop.side_effect = _stop_never_returns
+
+    async with asyncio.timeout(5):
+        result = await _start_menu_step(hass, "existing_pki")
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == NO_PKI_ERROR
+    mock_qolsys_controller.stop.assert_not_awaited()
+
+
+async def test_stop_controller_cancels_a_running_controller_once(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    tmp_config_dir: Path,
+):
+    """Teardown cancels a run_forever still in flight exactly once, without stop()."""
+    run = _StubbornRun(refuse_first_cancel=False)
+    mock_qolsys_controller.run_forever.side_effect = run.run
+    flow = _flow(hass, tmp_config_dir)
+    connect = hass.async_create_task(_connect(flow))
+    await run.started.wait()
+
+    async with asyncio.timeout(5):
+        await flow._async_stop_controller()
+
+    assert run.cancelled == 1
+    mock_qolsys_controller.stop.assert_not_awaited()
+    await asyncio.wait({connect})
+    assert connect.done()
+
+    # A second teardown (the flow ending after an error, say) has nothing left to do.
+    async with asyncio.timeout(5):
+        await flow._async_stop_controller()
+    assert run.cancelled == 1
+
+
+async def test_stop_controller_wait_is_bounded(
+    hass: HomeAssistant,
+    mock_qolsys_controller: MagicMock,
+    tmp_config_dir: Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    """A run task that ignores its cancel only holds the teardown for the bound."""
+    run = _StubbornRun()
+    mock_qolsys_controller.run_forever.side_effect = run.run
+    flow = _flow(hass, tmp_config_dir)
+    connect = hass.async_create_task(_connect(flow))
+    await run.started.wait()
+
+    with patch(f"{_FLOW}._STOP_TIMEOUT_SECONDS", 0.05):
+        async with asyncio.timeout(5):
+            await flow._async_stop_controller()
+
+    assert run.cancelled == 1
+    assert "did not stop" in caplog.text
+    mock_qolsys_controller.stop.assert_not_awaited()
+    run.release.set()
+    await asyncio.wait({connect})
 
 
 async def test_existing_pki_duplicate_aborts(
@@ -869,7 +992,7 @@ async def test_reconfigure_no_pki_found(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == NO_PKI_ERROR
-    mock_qolsys_controller.stop.assert_awaited_once()
+    mock_qolsys_controller.stop.assert_not_awaited()
 
 
 async def test_reconfigure_error_and_recover(

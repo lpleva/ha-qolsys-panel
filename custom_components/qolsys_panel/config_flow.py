@@ -96,6 +96,12 @@ _CONNECTION_FAILURE_ERRORS = {
 }
 
 
+# How long the flow's teardown waits for a cancelled controller run to end
+# before giving up on it (our version of upstream 79e61727e; the bound is our
+# own choice, upstream's flow still awaits stop()).
+_STOP_TIMEOUT_SECONDS = 10
+
+
 class QolsysPanelConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Qolsys Panel."""
 
@@ -123,6 +129,9 @@ class QolsysPanelConfigFlow(ConfigFlow, domain=DOMAIN):
         self._config_directory = Path()
         self._error_placeholders: dict[str, str] = {}
         self._pairing_task: asyncio.Task[dict[str, str]] | None = None
+        # The controller's run_forever, as its own task so teardown can cancel
+        # it instead of awaiting stop() (upstream 79e61727e).
+        self._run_task: asyncio.Task[None] | None = None
         self._plugin_ip: str = ""
         self._pairing_port: int = 0
 
@@ -531,9 +540,34 @@ class QolsysPanelConfigFlow(ConfigFlow, domain=DOMAIN):
         self._restore_log_levels()
 
     async def _async_stop_controller(self) -> None:
-        """Stop the controller; never let teardown errors mask the flow result."""
+        """Stop the controller; never let teardown errors mask the flow result.
+
+        Cancels the controller's run task and waits for it, at most
+        _STOP_TIMEOUT_SECONDS, rather than awaiting QolsysPanel.stop(): stop()
+        cancels the supervisor, a child of the TaskGroup inside run_forever,
+        and a TaskGroup ignores a cancelled child, so stop() can wait forever
+        (our version of upstream 79e61727e). A cancellation of the flow itself
+        still propagates.
+        """
+        run_task, self._run_task = self._run_task, None
+        if run_task is None or run_task.done():
+            return
         try:
-            await self._QolsysPanel.stop()
+            run_task.cancel()
+            done, _pending = await asyncio.wait(
+                {run_task}, timeout=_STOP_TIMEOUT_SECONDS
+            )
+            if not done:
+                _LOGGER.warning(
+                    "Qolsys controller did not stop within %s seconds of being"
+                    " cancelled during config-flow teardown",
+                    _STOP_TIMEOUT_SECONDS,
+                )
+            elif not run_task.cancelled() and run_task.exception() is not None:
+                _LOGGER.debug(
+                    "Controller ended with an error during config-flow teardown",
+                    exc_info=run_task.exception(),
+                )
         except BaseException:
             task = asyncio.current_task()
             if task is not None and task.cancelling():
@@ -622,10 +656,16 @@ class QolsysPanelConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Attempt to connect to the panel. run_forever raises a plain exception
         error = {}
-        try:
-            await self._QolsysPanel.run_forever(
+        # The run is its own task so _async_stop_controller can cancel it.
+        # Awaiting it here passes a cancellation of this step on to it.
+        self._run_task = self.hass.async_create_task(
+            self._QolsysPanel.run_forever(
                 reconnect=False, run_once=True, start_pairing=start_pairing
-            )
+            ),
+            "qolsys_panel config flow controller",
+        )
+        try:
+            await self._run_task
         except (QolsysSslError, SSLError) as err:
             _LOGGER.error("TLS error during step: %s", step)
             self._error_placeholders = {"reason": str(err) or type(err).__name__}
