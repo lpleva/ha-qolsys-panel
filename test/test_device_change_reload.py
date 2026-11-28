@@ -249,12 +249,17 @@ async def test_a_report_while_not_connected_is_ignored(
     freezer: FrozenDateTimeFactory,
     state: ControllerState,
 ) -> None:
-    """The resync after a reconnect re-adds every zone; none of that reloads."""
+    """The resync after a reconnect re-adds every zone; none of that reloads,
+    then or after the connection is back."""
     await _setup(hass, mock_config_entry)
     with patch.object(hass.config_entries, "async_schedule_reload") as reload:
-        mock_controller.controller_state = state
+        await _set_state(hass, mock_controller, state)
         for callback in _callbacks(mock_controller).values():
             callback()
+        await _tick(hass, freezer, 60)
+        reload.assert_not_called()
+
+        await _set_state(hass, mock_controller, ControllerState.CONNECTED)
         await _tick(hass, freezer, 60)
         reload.assert_not_called()
 
@@ -350,9 +355,8 @@ async def test_a_zone_report_reloads_the_entry_end_to_end_and_keeps_devices(
     _panel_lists(mock_controller, "1", "2", "3", "4", "6")
     first[QolsysNotification.ZONE_DELETE]()
     first[QolsysNotification.ZONE_ADD]()
-    async with asyncio.timeout(10):
-        await _tick(hass, freezer, _RELOAD_DELAY_SECONDS + 0.5)
-        await hass.async_block_till_done()
+    # No asyncio.timeout here: the frozen clock moves the loop's time too.
+    await _tick(hass, freezer, _RELOAD_DELAY_SECONDS + 0.5)
 
     assert mock_config_entry.state is ConfigEntryState.LOADED
     assert run.calls == 2
