@@ -401,6 +401,11 @@ async def test_unload_cancels_the_controller_task_without_stop(
     assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
     assert run.cancelled == 0
+    # Rule 1 on its own: the run is the entry's background task, which is what
+    # makes Home Assistant cancel it on unload.
+    assert [
+        task.get_name() for task in mock_config_entry._background_tasks
+    ] == ["qolsys-controller"]
 
     async with asyncio.timeout(5):
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
@@ -430,6 +435,39 @@ async def test_setup_timeout_cancels_the_controller_task_without_stop(
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
     assert run.cancelled == 1
     mock_controller.stop.assert_not_awaited()
+
+
+async def test_setup_timeout_does_not_wait_past_the_bound_for_a_stalled_controller(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Rule 2: a controller that ignores its cancel holds a failed setup only 10 s at most."""
+    release = asyncio.Event()
+
+    async def _stalls_on_cancel(*_args, **_kwargs) -> None:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            await release.wait()
+
+    mock_controller.run_forever.side_effect = _stalls_on_cancel
+    mock_controller.wait_until_connected.side_effect = _block_forever
+    mock_config_entry.add_to_hass(hass)
+
+    with (
+        patch("custom_components.qolsys_panel._CONNECT_TIMEOUT_SECONDS", 0.05),
+        patch("custom_components.qolsys_panel._TEARDOWN_TIMEOUT_SECONDS", 0.05),
+    ):
+        async with asyncio.timeout(5):
+            await hass.config_entries.async_setup(mock_config_entry.entry_id)
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert "did not stop within" in caplog.text
+    mock_controller.stop.assert_not_awaited()
+    release.set()
+    await hass.async_block_till_done()
 
 
 async def test_reload_twice_then_unload_cancels_every_run(

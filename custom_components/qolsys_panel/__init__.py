@@ -71,6 +71,10 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 # How long to wait for the panel to connect during setup before retrying.
 _CONNECT_TIMEOUT_SECONDS = 30
 
+# How long a failed setup waits for the cancelled controller task to end
+# before giving up on it (the same bound as the config flow's teardown).
+_TEARDOWN_TIMEOUT_SECONDS = 10
+
 
 def _setup_error(
     exc: BaseException | None,
@@ -224,7 +228,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
         # parked and stop() never returns (upstream 79e61727e).
         connected_task.cancel()
         controller_task.cancel()
-        await asyncio.wait({controller_task})
+        _stopped, still_running = await asyncio.wait(
+            {controller_task}, timeout=_TEARDOWN_TIMEOUT_SECONDS
+        )
+        if still_running:
+            # Left running in the background; HA cancels it again at shutdown.
+            _LOGGER.warning(
+                "Qolsys controller did not stop within %s seconds of being"
+                " cancelled after a failed setup",
+                _TEARDOWN_TIMEOUT_SECONDS,
+            )
         if controller_task in done:
             exc = controller_task.exception()
             _LOGGER.error("Qolsys Panel startup failed: %r", exc)
