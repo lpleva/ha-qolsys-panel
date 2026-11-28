@@ -1616,8 +1616,10 @@
       "reason": "Split. Implement the hang fix: run the controller as a config-entry background task and cancel it on unload and on a failed setup instead of awaiting QolsysPanel.stop(), which in our vendored library waits forever because cancelling the supervisor child never ends run_forever's TaskGroup. Ask: the automatic reload of the alarm integration 10 s after the panel reports a partition, zone or automation device added or deleted (a debatable new behavior on the alarm integration); upstream's README/docs rewrite (including its force-arm example) is declined.",
       "implemented_in": [
         "06192cc0da53a7e3caff06ec339b8909135bcb5c",
+        "0d8b101c706bc1c45db87a1a552b8b742191a50e",
         "307ae6c761a9df20314ec2b810b14ab42011ae6d",
-        "ac498a67b3d3615d66a849f9dbc39a40000c30b1"
+        "ac498a67b3d3615d66a849f9dbc39a40000c30b1",
+        "d0da6aa96a1a5d58de3775248aeece09926b34db"
       ],
       "triaged": "2026-11-28",
       "source": "triage"
