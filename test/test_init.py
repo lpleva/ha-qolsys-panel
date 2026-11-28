@@ -5,6 +5,7 @@ from collections.abc import Generator
 import logging
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
+import aiomqtt
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -236,7 +237,7 @@ async def test_unload_unregisters_connection_logger(
     mock_config_entry: MockConfigEntry,
     mock_controller: MagicMock,
 ):
-    """Test unloading the entry stops the controller and unregisters."""
+    """Test unloading the entry unregisters, without awaiting stop() (upstream 79e61727e)."""
     mock_config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
@@ -247,7 +248,7 @@ async def test_unload_unregisters_connection_logger(
     await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
-    mock_controller.stop.assert_awaited_once()
+    mock_controller.stop.assert_not_awaited()
     mock_controller.state.unregister.assert_any_call(
         QolsysNotification.PANEL_STATUS_UPDATE, status_callback
     )
@@ -281,6 +282,8 @@ async def test_setup_controller_startup_errors(
     await hass.async_block_till_done()
 
     assert mock_config_entry.state is expected_state
+    # Rule 2 (upstream 79e61727e): the failure path never awaits stop().
+    mock_controller.stop.assert_not_awaited()
 
 
 async def test_setup_connection_timeout(
@@ -359,3 +362,278 @@ async def test_setup_without_unique_id_is_not_ready(
 
     assert not await hass.config_entries.async_setup(mock_config_entry.entry_id)
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+
+
+# --- Unload and setup teardown never await stop() (our version of upstream 79e61727e) ---
+#
+# The vendored controller's stop() cancels the supervisor task, a child of the
+# TaskGroup inside run_forever. A TaskGroup ignores a cancelled child, so
+# run_forever stays parked and stop() never returns. These tests pin the fix:
+# the controller runs as a config entry background task that Home Assistant
+# cancels on unload, and setup cancels it on failure.
+
+
+class _CountingRun:
+    """A run_forever stand-in that blocks until cancelled and counts each cancel."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.cancelled = 0
+
+    async def run(self, *_args, **_kwargs) -> None:
+        self.calls += 1
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled += 1
+            raise
+
+
+async def test_unload_cancels_the_controller_task_without_stop(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+) -> None:
+    """Rules 1 and 3: unload cancels the run task once and never awaits stop()."""
+    run = _CountingRun()
+    mock_controller.run_forever.side_effect = run.run
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert run.cancelled == 0
+
+    async with asyncio.timeout(5):
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+    assert run.cancelled == 1
+    mock_controller.stop.assert_not_awaited()
+
+
+async def test_setup_timeout_cancels_the_controller_task_without_stop(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+) -> None:
+    """Rule 2: a connection timeout cancels the run task once, never stop()."""
+    run = _CountingRun()
+    mock_controller.run_forever.side_effect = run.run
+    mock_controller.wait_until_connected.side_effect = _block_forever
+    mock_config_entry.add_to_hass(hass)
+
+    with patch("custom_components.qolsys_panel._CONNECT_TIMEOUT_SECONDS", 0.05):
+        async with asyncio.timeout(5):
+            await hass.config_entries.async_setup(mock_config_entry.entry_id)
+            await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert run.cancelled == 1
+    mock_controller.stop.assert_not_awaited()
+
+
+async def test_reload_twice_then_unload_cancels_every_run(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+) -> None:
+    """Edge case: repeated reloads each cancel the previous run, then unload the last."""
+    run = _CountingRun()
+    mock_controller.run_forever.side_effect = run.run
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    async with asyncio.timeout(10):
+        assert await hass.config_entries.async_reload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+        assert mock_config_entry.state is ConfigEntryState.LOADED
+        assert await hass.config_entries.async_reload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+        assert mock_config_entry.state is ConfigEntryState.LOADED
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+    assert run.calls == 3
+    assert run.cancelled == 3
+    mock_controller.stop.assert_not_awaited()
+
+
+@pytest.mark.parametrize("ending", ["finished", "crashed"])
+async def test_unload_after_the_controller_task_ended(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+    ending: str,
+) -> None:
+    """Edge case: a run task that already finished or crashed still unloads cleanly."""
+    end = asyncio.Event()
+
+    async def _run(*_args, **_kwargs) -> None:
+        await end.wait()
+        if ending == "crashed":
+            raise QolsysMqttError("boom")
+
+    mock_controller.run_forever.side_effect = _run
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    end.set()
+    await hass.async_block_till_done()
+
+    async with asyncio.timeout(5):
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+    mock_controller.stop.assert_not_awaited()
+
+
+# The real vendored controller, with only the MQTT side patched out.
+
+_CONTROLLER_CLASS = (
+    "custom_components.qolsys_panel.vendor.qolsys_controller.controller.QolsysController"
+)
+
+
+class _FakeMqttClient:
+    """Enough of aiomqtt.Client for run_supervised: an async context and subscribe."""
+
+    async def __aenter__(self) -> "_FakeMqttClient":
+        return self
+
+    async def __aexit__(self, *_exc) -> None:
+        return None
+
+    async def subscribe(self, *_args, **_kwargs) -> None:
+        return None
+
+
+@pytest.fixture
+def real_controller() -> Generator[dict]:
+    """Run the real vendored run_forever/run_supervised against a fake MQTT client.
+
+    Patched: config_task (no files or PKI), the transport (a fake client), the
+    session handshake and the four MQTT loops. The test can make the listen
+    loop drop the connection and make the next connect attempt hang.
+    """
+    knobs: dict = {
+        "drop": asyncio.Event(),
+        "opens": 0,
+        "hang_after_first_open": False,
+    }
+
+    async def _config_task(self, start_pairing: bool) -> None:
+        self._is_configured = True
+
+    async def _open(self) -> _FakeMqttClient:
+        knobs["opens"] += 1
+        if knobs["opens"] > 1 and knobs["hang_after_first_open"]:
+            await asyncio.Event().wait()
+        return _FakeMqttClient()
+
+    async def _listen(self, client) -> None:
+        await knobs["drop"].wait()
+        knobs["drop"].clear()
+        raise aiomqtt.MqttError("connection dropped")
+
+    async def _forever(self, *_args, **_kwargs) -> None:
+        await asyncio.Event().wait()
+
+    async def _noop(self, *_args, **_kwargs) -> None:
+        return None
+
+    with (
+        patch(f"{_CONTROLLER_CLASS}.config_task", _config_task),
+        patch(f"{_CONTROLLER_CLASS}.mqtt_open_transport_task", _open),
+        patch(f"{_CONTROLLER_CLASS}.mqtt_listen_task", _listen),
+        patch(f"{_CONTROLLER_CLASS}.mqtt_publish_task", _forever),
+        patch(f"{_CONTROLLER_CLASS}.mqtt_ping_task", _forever),
+        patch(f"{_CONTROLLER_CLASS}.mqtt_zwave_meter_update", _forever),
+        patch(f"{_CONTROLLER_CLASS}.mqtt_initialize_session_task", _noop),
+        patch(
+            "custom_components.qolsys_panel.get_local_ip",
+            return_value="192.168.1.2",
+        ),
+        patch("custom_components.qolsys_panel.PLATFORMS", []),
+    ):
+        yield knobs
+
+
+async def test_unload_with_the_real_controller_does_not_hang(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    real_controller: dict,
+) -> None:
+    """Unload with the real run_forever while connected stops the controller."""
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    controller = mock_config_entry.runtime_data
+    assert controller.controller_state is ControllerState.CONNECTED
+
+    async with asyncio.timeout(5):
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+    assert controller.controller_state is ControllerState.STOPPED
+
+
+async def test_unload_while_the_real_controller_waits_to_reconnect_does_not_hang(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    real_controller: dict,
+) -> None:
+    """Rule 3 on the real run_forever: unload during the reconnect delay.
+
+    The supervisor sits in asyncio.sleep(delay) outside its try, so stop()'s
+    cancel ends it as a plain cancelled task; run_forever's TaskGroup ignores
+    that and stays parked, and the old unload (which awaited stop()) hung here
+    forever.
+    """
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    controller = mock_config_entry.runtime_data
+
+    real_controller["drop"].set()
+    async with asyncio.timeout(5):
+        while controller.controller_state is not ControllerState.RECONNECTING:
+            await asyncio.sleep(0)
+
+    async with asyncio.timeout(5):
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+    assert controller.controller_state is ControllerState.STOPPED
+
+
+async def test_unload_while_the_real_controller_is_connecting_does_not_hang(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    real_controller: dict,
+) -> None:
+    """Edge case: unload while the controller is stuck opening a new connection."""
+    real_controller["hang_after_first_open"] = True
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    controller = mock_config_entry.runtime_data
+
+    real_controller["drop"].set()
+    async with asyncio.timeout(10):
+        while real_controller["opens"] < 2:
+            await asyncio.sleep(0.05)
+    assert controller.controller_state is ControllerState.CONNECTING
+
+    async with asyncio.timeout(5):
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+    assert controller.controller_state is ControllerState.STOPPED

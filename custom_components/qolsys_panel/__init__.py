@@ -200,7 +200,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
     )
 
     # Start the controller (long-lived) and, separately, wait for the CONNECTED state.
-    controller_task = hass.async_create_background_task(
+    # The controller runs as a config entry background task, so Home Assistant
+    # cancels it when the entry unloads (our version of upstream 79e61727e).
+    controller_task = entry.async_create_background_task(
+        hass,
         QolsysPanel.run_forever(reconnect=True, run_once=False, start_pairing=False),
         "qolsys-controller",
     )
@@ -214,9 +217,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
 
     if connected_task not in done or connected_task.exception() is not None:
         # Fatal startup failure or timeout: tear everything down and surface the reason.
+        # Cancel the controller task and wait for it rather than calling
+        # QolsysPanel.stop(): stop() cancels the supervisor, a child of the
+        # TaskGroup inside run_forever, and a TaskGroup ignores a cancelled
+        # child, so while the supervisor waits to reconnect run_forever stays
+        # parked and stop() never returns (upstream 79e61727e).
         connected_task.cancel()
-        await QolsysPanel.stop()
         controller_task.cancel()
+        await asyncio.wait({controller_task})
         if controller_task in done:
             exc = controller_task.exception()
             _LOGGER.error("Qolsys Panel startup failed: %r", exc)
@@ -292,11 +300,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
 async def async_unload_entry(
     hass: HomeAssistant, entry: QolsysPanelConfigEntry
 ) -> bool:
-    """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        QolsysPanel = entry.runtime_data
-        await QolsysPanel.stop()
-    return unload_ok
+    """Unload a config entry.
+
+    Home Assistant cancels the controller task (a config entry background task)
+    once the platforms have unloaded. QolsysPanel.stop() is not awaited: it can
+    hang for good while the controller waits to reconnect (upstream 79e61727e).
+    """
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_remove_entry(
