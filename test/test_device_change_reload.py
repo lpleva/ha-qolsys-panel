@@ -17,6 +17,7 @@ The rules this file pins (from the approval):
 import asyncio
 from collections.abc import Callable, Generator
 from datetime import timedelta
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from freezegun.api import FrozenDateTimeFactory
@@ -36,7 +37,7 @@ from custom_components.qolsys_panel.vendor.qolsys_controller.enum_qolsys import 
     QolsysNotification,
 )
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 THE_SIX = {
@@ -238,19 +239,36 @@ async def test_a_burst_reloads_once_ten_seconds_after_the_last_report(
 # Rule 2: no reload while reconnecting or not yet connected
 
 
-@pytest.mark.parametrize(
-    "state",
-    [ControllerState.RECONNECTING, ControllerState.CONNECTING, ControllerState.CONFIGURING],
-)
-async def test_a_report_while_not_connected_is_ignored(
+NOT_CONNECTED = [s for s in ControllerState if s is not ControllerState.CONNECTED]
+
+
+def test_every_other_controller_state_is_covered() -> None:
+    """The vendored enum's states other than CONNECTED, so a new one is noticed."""
+    assert set(NOT_CONNECTED) == {
+        ControllerState.STOPPED,
+        ControllerState.CONFIGURING,
+        ControllerState.PAIRING,
+        ControllerState.CONNECTING,
+        ControllerState.RECONNECTING,
+        ControllerState.SHUTTING_DOWN,
+    }
+
+
+@pytest.mark.parametrize("state", NOT_CONNECTED)
+async def test_a_report_while_not_connected_reloads_after_the_connection_is_back(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_controller: MagicMock,
     freezer: FrozenDateTimeFactory,
     state: ControllerState,
 ) -> None:
-    """The resync after a reconnect re-adds every zone; none of that reloads,
-    then or after the connection is back."""
+    """No reload while not connected; exactly one, 10 s after CONNECTED.
+
+    The resync during a reconnect (load_database, then sync_zones_data and
+    friends) reports only real differences from the table held before the
+    drop, so a report there is a sensor added or deleted while Home
+    Assistant was disconnected, and must not be lost.
+    """
     await _setup(hass, mock_config_entry)
     with patch.object(hass.config_entries, "async_schedule_reload") as reload:
         await _set_state(hass, mock_controller, state)
@@ -260,7 +278,28 @@ async def test_a_report_while_not_connected_is_ignored(
         reload.assert_not_called()
 
         await _set_state(hass, mock_controller, ControllerState.CONNECTED)
+        await _tick(hass, freezer, 9)
+        reload.assert_not_called()
+        await _tick(hass, freezer, 1.5)
+        reload.assert_called_once_with(mock_config_entry.entry_id)
         await _tick(hass, freezer, 60)
+        reload.assert_called_once_with(mock_config_entry.entry_id)
+
+
+async def test_no_reload_while_home_assistant_is_stopping(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_controller: MagicMock,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    await _setup(hass, mock_config_entry)
+    with patch.object(hass.config_entries, "async_schedule_reload") as reload:
+        _callbacks(mock_controller)[QolsysNotification.ZONE_ADD]()
+        hass.set_state(CoreState.stopping)
+        try:
+            await _tick(hass, freezer, 60)
+        finally:
+            hass.set_state(CoreState.running)
         reload.assert_not_called()
 
 
@@ -269,8 +308,10 @@ async def test_a_reload_due_while_reconnecting_waits_for_the_connection(
     mock_config_entry: MockConfigEntry,
     mock_controller: MagicMock,
     freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Connection lost inside the 10 s: no reload then, one 10 s after it is back."""
+    caplog.set_level(logging.INFO)
     await _setup(hass, mock_config_entry)
     with patch.object(hass.config_entries, "async_schedule_reload") as reload:
         _callbacks(mock_controller)[QolsysNotification.ZONE_ADD]()
@@ -278,6 +319,10 @@ async def test_a_reload_due_while_reconnecting_waits_for_the_connection(
         await _set_state(hass, mock_controller, ControllerState.RECONNECTING)
         await _tick(hass, freezer, 60)
         reload.assert_not_called()
+        assert (
+            "Devices changed on the Qolsys Panel while disconnected;"
+            " reloading after reconnect" in caplog.text
+        )
 
         await _set_state(hass, mock_controller, ControllerState.CONNECTED)
         await _tick(hass, freezer, 9)
