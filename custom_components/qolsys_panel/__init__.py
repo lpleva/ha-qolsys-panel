@@ -7,7 +7,7 @@ import logging
 import ssl
 
 from homeassistant.const import CONF_HOST, CONF_MAC, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
     ConfigEntryError,
@@ -18,6 +18,7 @@ from homeassistant.helpers import (
     device_registry as dr,
     issue_registry as ir,
 )
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.typing import ConfigType
 
@@ -74,6 +75,23 @@ _CONNECT_TIMEOUT_SECONDS = 30
 # How long a failed setup waits for the cancelled controller task to end
 # before giving up on it (the same bound as the config flow's teardown).
 _TEARDOWN_TIMEOUT_SECONDS = 10
+
+# Panel reports of a partition, zone or Z-Wave device added or deleted.
+# Entities are only created at setup, so any of these reloads the entry (our
+# version of upstream 79e61727e). Upstream also listens to CAMERA_ADD/DELETE;
+# the vendored enum has no such members, so naming them would fail at import.
+_DEVICE_CHANGE_NOTIFICATIONS = (
+    QolsysNotification.PARTITION_ADD,
+    QolsysNotification.PARTITION_DELETE,
+    QolsysNotification.ZONE_ADD,
+    QolsysNotification.ZONE_DELETE,
+    QolsysNotification.AUTOMATION_ADD,
+    QolsysNotification.AUTOMATION_DELETE,
+)
+
+# The reload runs this long after the last such report, so a burst (a
+# partition deleted along with its zones) gives one reload.
+_RELOAD_DELAY_SECONDS = 10
 
 
 def _setup_error(
@@ -252,12 +270,63 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
     # first point where the loaded codes can be reported on.
     _async_report_user_codes(hass, entry, QolsysPanel)
 
+    # Reload when a partition, zone or Z-Wave device is added to or deleted
+    # from the panel (our version of upstream 79e61727e). Reports count only
+    # while CONNECTED: the first table read and the re-read after a reconnect
+    # both happen before the state flips, and neither should reload. A reload
+    # that comes due while the connection is down waits for it to return.
+    # The reload never deletes a device; stale zones keep their 7-day Repair.
+    reload_after_reconnect = False
+
+    @callback
+    def _reload_entry() -> None:
+        nonlocal reload_after_reconnect
+        if QolsysPanel.controller_state != ControllerState.CONNECTED:
+            _LOGGER.info(
+                "Devices changed on the Qolsys Panel; reloading once the"
+                " connection is back"
+            )
+            reload_after_reconnect = True
+            return
+        _LOGGER.info("Devices changed on the Qolsys Panel, reloading")
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    reload_debouncer = Debouncer(
+        hass,
+        _LOGGER,
+        cooldown=_RELOAD_DELAY_SECONDS,
+        immediate=False,
+        function=_reload_entry,
+    )
+
+    @callback
+    def _schedule_reload() -> None:
+        # Debouncer counts its cooldown from the first call; cancelling first
+        # restarts the 10 s at every report, so it ends 10 s after the last.
+        reload_debouncer.async_cancel()
+        reload_debouncer.async_schedule_call()
+
+    @callback
+    def _on_device_change() -> None:
+        if QolsysPanel.controller_state != ControllerState.CONNECTED:
+            return
+        _schedule_reload()
+
+    def _unregister_device_change_listener() -> None:
+        for notification in _DEVICE_CHANGE_NOTIFICATIONS:
+            QolsysPanel.state.unregister(notification, _on_device_change)
+        reload_debouncer.async_shutdown()
+
+    for notification in _DEVICE_CHANGE_NOTIFICATIONS:
+        QolsysPanel.state.register(notification, _on_device_change)
+    entry.async_on_unload(_unregister_device_change_listener)
+
     # Log once when the connection to the panel is lost and once when it is
     # restored.
     was_connected = True
 
     def _check_connection() -> None:
-        nonlocal was_connected
+        nonlocal was_connected, reload_after_reconnect
         state = QolsysPanel.controller_state
         if was_connected and state == ControllerState.RECONNECTING:
             _LOGGER.info("Connection to Qolsys Panel lost, reconnecting")
@@ -267,6 +336,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
             # flips, so this is a full reading: judge the stale-zone timers.
             if (watch := get_watch(hass, entry.entry_id)) is not None:
                 watch.schedule_check()
+            if reload_after_reconnect:
+                reload_after_reconnect = False
+                _schedule_reload()
         was_connected = state == ControllerState.CONNECTED
 
     def _on_panel_status_update() -> None:
