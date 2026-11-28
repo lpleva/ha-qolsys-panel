@@ -1,5 +1,31 @@
 ## Unreleased
 
+- **Unloading or reloading the alarm integration can no longer hang.** Our
+  version of the hang-fix half of upstream 79e61727e (#195). The vendored
+  controller's `stop()` cancels its supervisor task, a child of the
+  TaskGroup inside `run_forever`; a TaskGroup ignores a cancelled child, so
+  while the supervisor waited to reconnect, `run_forever` stayed parked and
+  `stop()` never returned. Unload awaited it, and so did a reload. Now the
+  controller runs as a config entry background task
+  (`entry.async_create_background_task`), which Home Assistant cancels when
+  the entry unloads; `async_unload_entry` only unloads the platforms; a
+  failed or timed-out setup cancels the controller task and waits for it
+  instead of calling `stop()` (SSL errors still ask for re-authentication,
+  MQTT errors and a timeout still retry with the same messages); and the
+  config flow's teardown (`_async_stop_controller`) cancels its own run task
+  and waits at most 10 seconds instead of awaiting `stop()`. Not taken:
+  upstream's automatic reload when devices are added on the panel (waiting on
+  Lukas) and its README and docs changes. Unchanged: arming and disarming,
+  entity ids, the MQTT-bridge refusal (M8), the users.conf Repairs, the
+  stale-zone watch and its check after a reconnect, the missing-unique_id
+  retry (N5). **What this changes in the house:** a reload of the alarm config
+  entry finishes within seconds instead of possibly never. Tests in
+  `test_init.py` (unload, setup timeout, reload twice, a finished or crashed
+  controller, and the real vendored `run_forever` unloaded while connected,
+  while waiting to reconnect, which hung before, and while connecting) and
+  `test_config_flow.py` (a `stop()` that never returns, a running controller
+  cancelled once, the bounded wait, cancellation still propagating).
+
 - **A zone the panel has lost or that has its cover off now reads
   unavailable instead of closed, for every zone type (door, window, smoke,
   motion, glass break, water, CO, keypad), as upstream does.** Our version of upstream cb11be0
