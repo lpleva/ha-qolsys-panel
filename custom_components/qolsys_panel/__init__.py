@@ -271,22 +271,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
     _async_report_user_codes(hass, entry, QolsysPanel)
 
     # Reload when a partition, zone or Z-Wave device is added to or deleted
-    # from the panel (our version of upstream 79e61727e). Reports count only
-    # while CONNECTED: the first table read and the re-read after a reconnect
-    # both happen before the state flips, and neither should reload. A reload
-    # that comes due while the connection is down waits for it to return.
-    # The reload never deletes a device; stale zones keep their 7-day Repair.
+    # from the panel (our version of upstream 79e61727e), 10 s after the last
+    # report. Nothing reloads while the controller is not CONNECTED: a report
+    # then (the resync during a reconnect reports only real differences from
+    # the table held before the drop, i.e. a sensor added or deleted while we
+    # were disconnected) is remembered, and the reload runs 10 s after the
+    # connection is back. The first table read happens before these
+    # listeners exist, so it never reloads. The reload never deletes a
+    # device; stale zones keep their 7-day Repair.
     reload_after_reconnect = False
 
     @callback
-    def _reload_entry() -> None:
+    def _defer_until_connected() -> None:
         nonlocal reload_after_reconnect
-        if QolsysPanel.controller_state != ControllerState.CONNECTED:
+        if not reload_after_reconnect:
             _LOGGER.info(
-                "Devices changed on the Qolsys Panel; reloading once the"
-                " connection is back"
+                "Devices changed on the Qolsys Panel while disconnected;"
+                " reloading after reconnect"
             )
-            reload_after_reconnect = True
+        reload_after_reconnect = True
+
+    @callback
+    def _reload_entry() -> None:
+        if hass.is_stopping:
+            return
+        if QolsysPanel.controller_state != ControllerState.CONNECTED:
+            _defer_until_connected()
             return
         _LOGGER.info("Devices changed on the Qolsys Panel, reloading")
         hass.config_entries.async_schedule_reload(entry.entry_id)
@@ -309,6 +319,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: QolsysPanelConfigEntry) 
     @callback
     def _on_device_change() -> None:
         if QolsysPanel.controller_state != ControllerState.CONNECTED:
+            _defer_until_connected()
             return
         _schedule_reload()
 
