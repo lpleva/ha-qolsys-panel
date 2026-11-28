@@ -1606,6 +1606,28 @@
       ],
       "triaged": "2026-11-21",
       "source": "triage"
+    },
+    {
+      "sha": "79e61727e2513b23bbd5626fbdc7f8c6dbc1c57f",
+      "date": "2026-11-23",
+      "subject": "feat: reload integration on panel device changes (#195)",
+      "bucket": "implement",
+      "status": "pending",
+      "reason": "Split. Implement the hang fix: run the controller as a config-entry background task and cancel it on unload and on a failed setup instead of awaiting QolsysPanel.stop(), which in our vendored library waits forever because cancelling the supervisor child never ends run_forever's TaskGroup. Ask: the automatic reload of the alarm integration 10 s after the panel reports a partition, zone or automation device added or deleted (a debatable new behavior on the alarm integration); upstream's README/docs rewrite (including its force-arm example) is declined.",
+      "implemented_in": [],
+      "triaged": "2026-11-28",
+      "source": "triage"
+    },
+    {
+      "sha": "4e00860af1c3cd221a61a87578a3fcc2d4844e23",
+      "date": "2026-11-24",
+      "subject": "1.15.0",
+      "bucket": "decline",
+      "status": "declined",
+      "reason": "Upstream's 1.15.0 release commit: version bump in manifest.json and pyproject.toml plus their CHANGELOG entry. Each listed change was or is triaged as its own commit.",
+      "implemented_in": [],
+      "triaged": "2026-11-28",
+      "source": "triage"
     }
   ]
 }
