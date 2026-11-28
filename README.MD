@@ -249,6 +249,10 @@ Most actions target a partition's `alarm_control_panel` entity; `change_master_v
 
 This integration is **local push**. It maintains a persistent local MQTT connection to the panel (by emulating an IQ Remote) and receives state changes in real time as the panel reports them within moments of a change. The integration does **not** poll the panel on an interval. If the connection drops it reconnects automatically.
 
+### Devices added or deleted on the panel
+
+When a partition, a zone (security sensor) or an automation device (Z-Wave and the like) is added to or deleted from the panel while Home Assistant is connected, the integration reloads itself 10 seconds after the last such change, so a new sensor appears without a restart. A burst of changes, such as a partition deleted along with its zones, gives one reload. During the reload the alarm entities read unavailable for a few seconds. Changes reported while the connection is down or still coming up do not trigger a reload; a reload that falls due while the connection is down runs 10 seconds after it comes back. The reload never deletes a device: a sensor deleted on the panel keeps its device in Home Assistant (see [Removing a zone the panel no longer has](#removing-a-zone-the-panel-no-longer-has)).
+
 ## ⚠️ Known Limitations
 
 - **IQ Remote emulation** — The integration communicates with the panel by emulating an IQ Remote device. Only features and devices the panel exposes to IQ Remotes can be monitored or controlled

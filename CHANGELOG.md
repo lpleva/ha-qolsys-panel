@@ -1,5 +1,33 @@
 ## Unreleased
 
+- **A sensor added at the panel now appears in Home Assistant within about
+  a minute, without a restart.** Our version of the automatic-reload half of
+  upstream 79e61727e (#195), approved by Lukas 2026-11-28. When the panel
+  reports a partition, zone or automation (Z-Wave) device added or deleted
+  (`PARTITION_ADD/DELETE`, `ZONE_ADD/DELETE`, `AUTOMATION_ADD/DELETE`),
+  the entry reloads once, 10 seconds after the last such report, through a
+  Home Assistant `Debouncer` (`immediate=False`) that calls
+  `async_schedule_reload`; each report restarts the 10 seconds, so a burst
+  gives one reload (upstream's Debouncer counts from the first report).
+  Differences from upstream: no `CAMERA_ADD/DELETE` (our vendored enum has
+  no such members, so upstream's tuple would fail at import); reports count
+  only while the controller is CONNECTED, so the table re-read after a
+  reconnect never reloads; a reload that falls due while the connection is
+  down waits for it to come back and runs 10 seconds later. Unload
+  unregisters the six listeners and shuts the debouncer down, so a waiting
+  reload is dropped. The reload deletes no device; the seven-day stale-zone
+  Repair is unchanged. `quality_scale.yaml`'s `dynamic-devices` is now
+  done. Not taken: upstream's README rewrite and `docs/automation-examples.md`.
+  Unchanged: entity ids, arming and disarming, the force-arm switch staying
+  out, the MQTT-bridge refusal (M8), the users.conf Repairs. **What this
+  changes in the house:** after a sensor is added at the panel it shows up
+  in Home Assistant within about a minute; the alarm entities read
+  unavailable for a few seconds during that reload. Tests:
+  `test_device_change_reload.py` (one reload per report, one per burst,
+  none while reconnecting or not yet connected, a reload due during a
+  reconnect waits for it, nothing pending after unload, a full reload end to
+  end that keeps a deleted zone's device).
+
 - **Unloading or reloading the alarm integration can no longer hang.** Our
   version of the hang-fix half of upstream 79e61727e (#195). The vendored
   controller's `stop()` cancels its supervisor task, a child of the
@@ -14,9 +42,9 @@
   re-authentication, MQTT errors and a timeout still retry with the same
   messages); and the
   config flow's teardown (`_async_stop_controller`) cancels its own run task
-  and waits at most 10 seconds instead of awaiting `stop()`. Not taken:
-  upstream's automatic reload when devices are added on the panel (waiting on
-  Lukas) and its README and docs changes. Unchanged: arming and disarming,
+  and waits at most 10 seconds instead of awaiting `stop()`. Not taken here:
+  upstream's automatic reload when devices are added on the panel (taken
+  separately, above, once Lukas approved it) and its README and docs changes. Unchanged: arming and disarming,
   entity ids, the MQTT-bridge refusal (M8), the users.conf Repairs, the
   stale-zone watch and its check after a reconnect, the missing-unique_id
   retry (N5). **What this changes in the house:** a reload of the alarm config

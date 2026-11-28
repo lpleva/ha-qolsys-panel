@@ -75,7 +75,7 @@ def test_statuses_are_valid_and_exemptions_say_why() -> None:
         ("action-setup", "done"),  # two regular services, set up in async_setup
         ("docs-conditions", "exempt"),
         ("docs-triggers", "exempt"),
-        ("dynamic-devices", "todo"),
+        ("dynamic-devices", "done"),  # the automatic reload, upstream 79e61727e
         ("entity-translations", "todo"),
         ("strict-typing", "done"),
         # Left as they are: has-entity-name waits on Lukas's call on 820cf52

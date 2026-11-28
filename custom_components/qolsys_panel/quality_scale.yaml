@@ -60,11 +60,11 @@ rules:
   docs-troubleshooting: done
   docs-use-cases: todo
   dynamic-devices:
-    status: todo
+    status: done
     comment: |
-      Zones, partitions and automation devices added on the panel only appear
-      after a reload; only a new automation-device sensor is added while
-      running.
+      A partition, zone or automation device added to or deleted from the
+      panel reloads the entry 10 seconds after the last such report (our
+      version of upstream 79e61727e); the reload never deletes a device.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default:
